@@ -432,7 +432,7 @@ func (r *AccessRequestReconciler) updateSecret(ctx context.Context,
 			secret.Namespace = ar.Spec.Namespace
 			secret.Name = ar.Spec.Name
 			secret.Labels = map[string]string{accessRequestLabelName: ar.Name}
-			secret.Data = map[string][]byte{"data": []byte(kubeconfig)}
+			secret.Data = map[string][]byte{"data": kubeconfig}
 			return r.Create(ctx, secret)
 		}
 		return err

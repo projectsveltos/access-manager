@@ -29,14 +29,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/cluster-api/util"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	libsveltosv1alpha1 "github.com/projectsveltos/libsveltos/api/v1alpha1"
-)
-
-const (
-	key   = "env"
-	value = "fv"
 )
 
 // Byf is a simple wrapper around By.
@@ -159,33 +153,4 @@ func deleteAndVerifyCleanup(accessRequestName string) {
 			types.NamespacedName{Name: accessRequest.Spec.Name, Namespace: accessRequest.Spec.Namespace}, secret)
 		return apierrors.IsNotFound(err)
 	}, timeout, pollingInterval).Should(BeTrue())
-}
-
-// getKubeconfigForAccessRequest waits for AccessRequest to be fulfilled and return
-// corresponding kubeconfig
-func getKubeconfigForAccessRequest(accessRequest *libsveltosv1alpha1.AccessRequest) []byte {
-	Expect(accessRequest).ToNot(BeNil())
-
-	accessRequestInfo := client.ObjectKey{Name: accessRequest.Name}
-
-	Eventually(func() bool {
-		currentAccessRequest := &libsveltosv1alpha1.AccessRequest{}
-		err := k8sClient.Get(context.TODO(), accessRequestInfo, currentAccessRequest)
-		return err == nil &&
-			currentAccessRequest.Status.SecretRef != nil
-	}, timeout, pollingInterval).Should(BeNil())
-
-	currentAccessRequest := &libsveltosv1alpha1.AccessRequest{}
-	Expect(k8sClient.Get(context.TODO(), accessRequestInfo, currentAccessRequest)).To(Succeed())
-
-	secret := &corev1.Secret{}
-	Expect(k8sClient.Get(context.TODO(),
-		types.NamespacedName{Name: currentAccessRequest.Status.SecretRef.Name, Namespace: currentAccessRequest.Status.SecretRef.Namespace},
-		secret)).To(Succeed())
-
-	Expect(secret.Data).ToNot(BeNil())
-	_, ok := secret.Data["data"]
-	Expect(ok).To(BeTrue())
-
-	return secret.Data["data"]
 }
