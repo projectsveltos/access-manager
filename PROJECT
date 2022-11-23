@@ -1,0 +1,12 @@
+domain: projectsveltos.io
+layout:
+- go.kubebuilder.io/v3
+projectName: access-manager
+repo: github.com/projectsveltos/access-manager
+resources:
+- controller: true
+  domain: projectsveltos.io
+  group: lib
+  kind: AccessRequest
+  version: v1alpha1
+version: "3"
