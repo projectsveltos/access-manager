@@ -45,8 +45,6 @@ import (
 )
 
 const (
-	accessRequestLabelName = "projectsveltos.io/access-request-name"
-
 	// expirationInSecond is the token expiration time.
 	expirationInSecond = 10 * time.Minute // minimum duration is 10 minutes
 )
@@ -319,7 +317,7 @@ func (r *AccessRequestReconciler) createServiceAccount(ctx context.Context, acce
 		if apierrors.IsNotFound(err) {
 			sa.Namespace = ar.Spec.Namespace
 			sa.Name = ar.Spec.Name
-			sa.Labels = map[string]string{accessRequestLabelName: ar.Name}
+			sa.Labels = map[string]string{libsveltosv1alpha1.AccessRequestLabelName: ar.Name}
 			return r.Create(ctx, sa)
 		}
 	}
@@ -366,14 +364,14 @@ func (r *AccessRequestReconciler) createRole(ctx context.Context,
 		if apierrors.IsNotFound(err) {
 			role.Namespace = ar.Spec.Namespace
 			role.Name = ar.Spec.Name
-			role.Labels = map[string]string{accessRequestLabelName: ar.Name}
+			role.Labels = map[string]string{libsveltosv1alpha1.AccessRequestLabelName: ar.Name}
 			role.Rules = rules
 			return r.Create(ctx, role)
 		}
 	}
 
 	role.Rules = rules
-	role.Labels = map[string]string{accessRequestLabelName: ar.Name}
+	role.Labels = map[string]string{libsveltosv1alpha1.AccessRequestLabelName: ar.Name}
 	return r.Update(ctx, role)
 }
 
@@ -389,7 +387,7 @@ func (r *AccessRequestReconciler) createRoleBinding(ctx context.Context,
 		if apierrors.IsNotFound(err) {
 			roleBinding.Namespace = ar.Spec.Namespace
 			roleBinding.Name = ar.Spec.Name
-			roleBinding.Labels = map[string]string{accessRequestLabelName: ar.Name}
+			roleBinding.Labels = map[string]string{libsveltosv1alpha1.AccessRequestLabelName: ar.Name}
 			roleBinding.RoleRef = rbacv1.RoleRef{
 				APIGroup: "rbac.authorization.k8s.io",
 				Kind:     "Role",
@@ -431,7 +429,7 @@ func (r *AccessRequestReconciler) updateSecret(ctx context.Context,
 		if apierrors.IsNotFound(err) {
 			secret.Namespace = ar.Spec.Namespace
 			secret.Name = ar.Spec.Name
-			secret.Labels = map[string]string{accessRequestLabelName: ar.Name}
+			secret.Labels = map[string]string{libsveltosv1alpha1.AccessRequestLabelName: ar.Name}
 			secret.Data = map[string][]byte{"data": kubeconfig}
 			return r.Create(ctx, secret)
 		}
