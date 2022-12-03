@@ -93,6 +93,9 @@ var _ = Describe("AccessRequestReconciler", func() {
 			currentSecret)).To(Succeed())
 		Expect(currentSecret.Data).ToNot(BeNil())
 		Expect(reflect.DeepEqual(currentSecret.Data["data"], kubeconfig)).To(BeTrue())
+		Expect(currentSecret.Labels).ToNot(BeNil())
+		_, ok := currentSecret.Labels[libsveltosv1alpha1.AccessRequestLabelName]
+		Expect(ok).To(BeTrue())
 	})
 
 	It("createRole creates Role", func() {
