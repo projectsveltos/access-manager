@@ -42,7 +42,6 @@ const (
 )
 
 var _ = Describe("AccessRequestReconciler", func() {
-	const host = "https://192.168.10.11:443"
 	var accessRequest *libsveltosv1alpha1.AccessRequest
 	var reconciler *controllers.AccessRequestReconciler
 	var arScope *scope.AccessRequestScope
@@ -52,10 +51,18 @@ var _ = Describe("AccessRequestReconciler", func() {
 			Client: testEnv.Client,
 			Config: testEnv.Config,
 			Scheme: scheme,
-			Host:   host,
 		}
 
-		accessRequest = getAccessRequest(randomString())
+		namespace := randomString()
+		ns := &corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: namespace,
+			},
+		}
+		Expect(testEnv.Create(context.TODO(), ns))
+		waitForObject(context.TODO(), testEnv.Client, ns)
+
+		accessRequest = getAccessRequest(namespace, randomString())
 
 		var err error
 		arScope, err = scope.NewAccessRequestScope(scope.AccessRequestScopeParams{
@@ -65,14 +72,6 @@ var _ = Describe("AccessRequestReconciler", func() {
 			ControllerName: "accessRequest",
 		})
 		Expect(err).To(BeNil())
-
-		ns := &corev1.Namespace{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: accessRequest.Spec.Namespace,
-			},
-		}
-		Expect(testEnv.Create(context.TODO(), ns))
-		waitForObject(context.TODO(), testEnv.Client, ns)
 	})
 
 	It("updateSecret creates secret", func() {
@@ -260,7 +259,7 @@ var _ = Describe("AccessRequestReconciler", func() {
 		Eventually(func() bool {
 			ar := &libsveltosv1alpha1.AccessRequest{}
 			err := testEnv.Get(context.TODO(),
-				types.NamespacedName{Name: accessRequest.Name},
+				types.NamespacedName{Namespace: accessRequest.Namespace, Name: accessRequest.Name},
 				ar)
 			if err != nil {
 				return false

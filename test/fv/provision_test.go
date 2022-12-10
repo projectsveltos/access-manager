@@ -33,19 +33,20 @@ var _ = Describe("AccessRequest: provision", func() {
 
 	It("AccessRequest reconciler creates secret with kubeconfig", Label("FV"), func() {
 		accessRequest := getAccessRequest(namePrefix)
-		Expect(k8sClient.Create(context.TODO(), accessRequest)).To(Succeed())
 
-		// The namespace is supposed to exist
+		// Namespace is supposed to exist
 		ns := &corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: accessRequest.Spec.Namespace,
+				Name: accessRequest.Namespace,
 			},
 		}
 		Expect(k8sClient.Create(context.TODO(), ns)).To(Succeed())
 
-		verifyAccessRequest(accessRequest.Name)
+		Expect(k8sClient.Create(context.TODO(), accessRequest)).To(Succeed())
+
+		verifyAccessRequest(accessRequest)
 
 		Byf("Deleting AccessRequest %s", accessRequest.Name)
-		deleteAndVerifyCleanup(accessRequest.Name)
+		deleteAndVerifyCleanup(accessRequest)
 	})
 })

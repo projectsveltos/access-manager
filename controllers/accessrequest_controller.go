@@ -55,7 +55,6 @@ type AccessRequestReconciler struct {
 	*rest.Config
 	Scheme               *runtime.Scheme
 	ConcurrentReconciles int
-	Host                 string
 }
 
 // ClassifierReports permissions are needed in order to create Role giving classifier-agent permission to
@@ -282,7 +281,8 @@ func (r *AccessRequestReconciler) generateKubeconfig(ctx context.Context, access
 	}
 
 	var kubeconfig []byte
-	kubeconfig, err = libsveltosutils.GetKubeconfigWithUserToken(ctx, r.Client, []byte(tokenRequest.Status.Token), crt, ar.Spec.Name, r.Host)
+	host := fmt.Sprintf("%s:%d", ar.Spec.ControlPlaneEndpoint.Host, ar.Spec.ControlPlaneEndpoint.Port)
+	kubeconfig, err = libsveltosutils.GetKubeconfigWithUserToken(ctx, r.Client, []byte(tokenRequest.Status.Token), crt, ar.Spec.Name, host)
 	if err != nil {
 		accessRequestScope.Logger.V(logs.LogInfo).Info(fmt.Sprintf("failed to get kubeconfig: %v", err))
 		return nil, err
@@ -370,6 +370,8 @@ func (r *AccessRequestReconciler) createRole(ctx context.Context,
 		}
 	}
 
+	role.Namespace = ar.Spec.Namespace
+	role.Name = ar.Spec.Name
 	role.Rules = rules
 	role.Labels = map[string]string{libsveltosv1alpha1.AccessRequestLabelName: ar.Name}
 	return r.Update(ctx, role)
