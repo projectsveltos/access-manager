@@ -89,7 +89,6 @@ func main() {
 		Config:               mgr.GetConfig(),
 		Scheme:               mgr.GetScheme(),
 		ConcurrentReconciles: concurrentReconciles,
-		Host:                 mgr.GetConfig().Host,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "AccessRequest")
 		os.Exit(1)

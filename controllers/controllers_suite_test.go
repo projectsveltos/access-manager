@@ -47,7 +47,7 @@ var (
 )
 
 const (
-	timeout         = 60 * time.Second
+	timeout         = 40 * time.Second
 	pollingInterval = 2 * time.Second
 )
 
@@ -130,15 +130,20 @@ func waitForObject(ctx context.Context, c client.Client, obj client.Object) {
 	}, timeout, pollingInterval).Should(BeNil())
 }
 
-func getAccessRequest(name string) *libsveltosv1alpha1.AccessRequest {
+func getAccessRequest(namespace, name string) *libsveltosv1alpha1.AccessRequest {
 	return &libsveltosv1alpha1.AccessRequest{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
+			Namespace: namespace,
+			Name:      name,
 		},
 		Spec: libsveltosv1alpha1.AccessRequestSpec{
-			Namespace: randomString(),
-			Name:      randomString(),
+			Namespace: namespace,
+			Name:      name + "-classifier-agent",
 			Type:      libsveltosv1alpha1.ClassifierAgentRequest,
+			ControlPlaneEndpoint: clusterv1.APIEndpoint{
+				Host: "https://192.168.10.1",
+				Port: int32(6443),
+			},
 		},
 	}
 }
