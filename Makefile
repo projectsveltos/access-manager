@@ -25,7 +25,7 @@ ARCH ?= amd64
 OS ?= $(shell uname -s | tr A-Z a-z)
 K8S_LATEST_VER ?= $(shell curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)
 export CONTROLLER_IMG ?= $(REGISTRY)/$(IMAGE_NAME)
-TAG ?= v0.3.0
+TAG ?= main
 
 
 .PHONY: all
@@ -190,8 +190,8 @@ deploy-projectsveltos: $(KUSTOMIZE)
 	$(MAKE) load-image
 	
 	@echo 'Install libsveltos CRDs'
-	$(KUBECTL) apply -f https://raw.githubusercontent.com/projectsveltos/libsveltos/v0.3.0/config/crd/bases/lib.projectsveltos.io_debuggingconfigurations.yaml
-	$(KUBECTL) apply -f https://raw.githubusercontent.com/projectsveltos/libsveltos/v0.3.0/config/crd/bases/lib.projectsveltos.io_accessrequests.yaml
+	$(KUBECTL) apply -f https://raw.githubusercontent.com/projectsveltos/libsveltos/main/config/crd/bases/lib.projectsveltos.io_debuggingconfigurations.yaml
+	$(KUBECTL) apply -f https://raw.githubusercontent.com/projectsveltos/libsveltos/main/config/crd/bases/lib.projectsveltos.io_accessrequests.yaml
 
 	# Install projectsveltos access-manager components
 	@echo 'Install projectsveltos access-manager components'
