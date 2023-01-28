@@ -1,5 +1,5 @@
 /*
-Copyright 2022.
+Copyright 2022. projectsveltos.io. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -69,8 +69,6 @@ type AccessRequestReconciler struct {
 //+kubebuilder:rbac:groups=lib.projectsveltos.io,resources=accessrequests/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=lib.projectsveltos.io,resources=accessrequests/finalizers,verbs=update
 //+kubebuilder:rbac:groups=lib.projectsveltos.io,resources=classifierreports,verbs=create;list;get;update;watch
-//+kubebuilder:rbac:groups="",resources=secrets,verbs=create;get;delete;update;watch;list
-//+kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch
 //+kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=create;list;get;delete;update;watch
 //+kubebuilder:rbac:groups="",resources=serviceaccounts/token,verbs=create;list;get;delete;update;watch
 //+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles,verbs=create;get;delete;update;list;watch
@@ -197,7 +195,7 @@ func (r *AccessRequestReconciler) SetupWithManager(mgr ctrl.Manager) error {
 func (r *AccessRequestReconciler) addFinalizer(ctx context.Context, accessRequestScope *scope.AccessRequestScope) error {
 	// If the SveltosCluster doesn't have our finalizer, add it.
 	controllerutil.AddFinalizer(accessRequestScope.AccessRequest, libsveltosv1alpha1.AccessRequestFinalizer)
-	// Register the finalizer immediately to avoid orphaning clusterprofile resources on delete
+	// Register the finalizer immediately to avoid orphaning accessRequest resources on delete
 	if err := accessRequestScope.PatchObject(ctx); err != nil {
 		accessRequestScope.Error(err, "Failed to add finalizer")
 		return errors.Wrapf(
@@ -282,7 +280,7 @@ func (r *AccessRequestReconciler) generateKubeconfig(ctx context.Context, access
 
 	var kubeconfig []byte
 	host := fmt.Sprintf("%s:%d", ar.Spec.ControlPlaneEndpoint.Host, ar.Spec.ControlPlaneEndpoint.Port)
-	kubeconfig, err = libsveltosutils.GetKubeconfigWithUserToken(ctx, r.Client, []byte(tokenRequest.Status.Token), crt, ar.Spec.Name, host)
+	kubeconfig, err = libsveltosutils.GetKubeconfigWithUserToken(ctx, []byte(tokenRequest.Status.Token), crt, ar.Spec.Name, host)
 	if err != nil {
 		accessRequestScope.Logger.V(logs.LogInfo).Info(fmt.Sprintf("failed to get kubeconfig: %v", err))
 		return nil, err
