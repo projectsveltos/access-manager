@@ -109,7 +109,7 @@ var _ = Describe("AccessRequestScope", func() {
 		Expect(accessRequest.Status.SecretRef.Name).To(Equal(secretName))
 	})
 
-	It("SetMatchingClusters sets AccessRequest.Status.MatchingCluster", func() {
+	It("SetFailureMessage sets RoleRequest.Status.FailureMessage", func() {
 		params := scope.AccessRequestScopeParams{
 			Client:        c,
 			AccessRequest: accessRequest,

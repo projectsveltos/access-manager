@@ -19,6 +19,7 @@ package fv_test
 import (
 	"context"
 	"fmt"
+	"unicode/utf8"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -28,10 +29,17 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/clientcmd"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	libsveltosv1alpha1 "github.com/projectsveltos/libsveltos/api/v1alpha1"
+)
+
+const (
+	key   = "env"
+	value = "fv"
 )
 
 // Byf is a simple wrapper around By.
@@ -169,4 +177,60 @@ func deleteAndVerifyCleanup(accessRequest *libsveltosv1alpha1.AccessRequest) {
 			types.NamespacedName{Name: accessRequest.Spec.Name, Namespace: accessRequest.Spec.Namespace}, secret)
 		return apierrors.IsNotFound(err)
 	}, timeout, pollingInterval).Should(BeTrue())
+}
+
+func getRoleRequest(namePrefix, admin string, clusterLabels map[string]string) *libsveltosv1alpha1.RoleRequest {
+	selector := ""
+	for k := range clusterLabels {
+		if selector != "" {
+			selector += ","
+		}
+		selector += fmt.Sprintf("%s=%s", k, clusterLabels[k])
+	}
+	roleRequest := &libsveltosv1alpha1.RoleRequest{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: namePrefix + randomString(),
+		},
+		Spec: libsveltosv1alpha1.RoleRequestSpec{
+			ClusterSelector: libsveltosv1alpha1.Selector(selector),
+			Admin:           admin,
+		},
+	}
+
+	return roleRequest
+}
+
+// createConfigMapWithPolicy creates a configMap with passed in policies.
+func createConfigMapWithPolicy(namespace, configMapName string, policyStrs ...string) *corev1.ConfigMap {
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      configMapName,
+		},
+		Data: map[string]string{},
+	}
+	for i := range policyStrs {
+		key := fmt.Sprintf("policy%d.yaml", i)
+		if utf8.Valid([]byte(policyStrs[i])) {
+			cm.Data[key] = policyStrs[i]
+		} else {
+			cm.BinaryData[key] = []byte(policyStrs[i])
+		}
+	}
+
+	return cm
+}
+
+// getKindWorkloadClusterKubeconfig returns client to access the kind cluster used as workload cluster
+func getKindWorkloadClusterKubeconfig() (client.Client, error) {
+	kubeconfigPath := "workload_kubeconfig" // this file is created in this directory by Makefile during cluster creation
+	config, err := clientcmd.LoadFromFile(kubeconfigPath)
+	if err != nil {
+		return nil, err
+	}
+	restConfig, err := clientcmd.NewDefaultClientConfig(*config, &clientcmd.ConfigOverrides{}).ClientConfig()
+	if err != nil {
+		return nil, err
+	}
+	return client.New(restConfig, client.Options{Scheme: scheme})
 }
