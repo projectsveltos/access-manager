@@ -20,6 +20,7 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/klog/v2/klogr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -116,13 +117,29 @@ func (r *RoleRequestReconciler) requeueRoleRequestForCluster(
 	consumers := r.getClusterMapForEntry(clusterInfo).Items()
 
 	for i := range consumers {
-		l := logger.WithValues("clusterSummary", fmt.Sprintf("%s/%s", consumers[i].Namespace, consumers[i].Name))
-		l.V(logs.LogDebug).Info("queuing ClusterSummary")
+		l := logger.WithValues("roleRequest", fmt.Sprintf("%s/%s", consumers[i].Namespace, consumers[i].Name))
+		l.V(logs.LogDebug).Info("queuing roleRequest")
 		requests[i] = ctrl.Request{
 			NamespacedName: client.ObjectKey{
 				Namespace: consumers[i].Namespace,
 				Name:      consumers[i].Name,
 			},
+		}
+	}
+
+	// Iterate over all current RoleRequests and reconcile the RoleRequests now
+	// matching the Cluster
+	for k := range r.RoleRequests {
+		clusterProfileSelector := r.RoleRequests[k]
+		parsedSelector, _ := labels.Parse(string(clusterProfileSelector))
+		if parsedSelector.Matches(labels.Set(cluster.GetLabels())) {
+			l := logger.WithValues("roleRequest", k.Name)
+			l.V(logs.LogDebug).Info("queuing roleRequest")
+			requests = append(requests, ctrl.Request{
+				NamespacedName: client.ObjectKey{
+					Name: k.Name,
+				},
+			})
 		}
 	}
 

@@ -31,6 +31,7 @@ var (
 )
 
 var (
+	RequeueRoleRequestForCluster   = (*RoleRequestReconciler).requeueRoleRequestForCluster
 	RequeueRoleRequestForReference = (*RoleRequestReconciler).requeueRoleRequestForReference
 	ProcessRoleRequest             = (*RoleRequestReconciler).processRoleRequest
 	RemoveRoleRequest              = (*RoleRequestReconciler).removeRoleRequest
