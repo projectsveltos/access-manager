@@ -62,6 +62,9 @@ type RoleRequestReconciler struct {
 	ConcurrentReconciles int
 	Deployer             deployer.DeployerInterface
 
+	// key: RoleRequest; value RoleRequest Selector
+	RoleRequests map[corev1.ObjectReference]libsveltosv1alpha1.Selector
+
 	// use a Mutex to update Map as MaxConcurrentReconciles is higher than one
 	Mux sync.Mutex
 	// key: Referenced object; value: set of all RoleRequests referencing the resource
@@ -199,6 +202,8 @@ func (r *RoleRequestReconciler) reconcileDelete(
 		}
 	}
 	delete(r.RoleRequestClusterMap, *roleRequestInfo)
+
+	delete(r.RoleRequests, *roleRequestInfo)
 
 	logger.V(logs.LogInfo).Info("Removing finalizer")
 	if controllerutil.ContainsFinalizer(roleRequestScope.RoleRequest, libsveltosv1alpha1.RoleRequestFinalizer) {
@@ -348,6 +353,8 @@ func (r *RoleRequestReconciler) updateMaps(roleRequestScope *scope.RoleRequestSc
 	r.Mux.Lock()
 	defer r.Mux.Unlock()
 
+	roleRequestInfo := getKeyFromObject(r.Scheme, roleRequestScope.RoleRequest)
+	r.RoleRequests[*roleRequestInfo] = roleRequestScope.RoleRequest.Spec.ClusterSelector
 	r.updateClusterMaps(roleRequestScope, currentClusters)
 	r.updateReferenceMaps(roleRequestScope, currentReferences)
 }

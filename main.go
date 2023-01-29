@@ -131,6 +131,7 @@ func main() {
 		Client:                  mgr.GetClient(),
 		Scheme:                  mgr.GetScheme(),
 		Deployer:                d,
+		RoleRequests:            make(map[corev1.ObjectReference]libsveltosv1alpha1.Selector),
 		ClusterMap:              make(map[corev1.ObjectReference]*libsveltosset.Set),
 		RoleRequestClusterMap:   make(map[corev1.ObjectReference]*libsveltosset.Set),
 		ReferenceMap:            make(map[corev1.ObjectReference]*libsveltosset.Set),

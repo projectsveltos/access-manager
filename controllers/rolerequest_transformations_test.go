@@ -17,6 +17,7 @@ limitations under the License.
 package controllers_test
 
 import (
+	"context"
 	"sync"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -86,6 +87,7 @@ var _ = Describe("ClustersummaryTransformations map functions", func() {
 		reconciler := &controllers.RoleRequestReconciler{
 			Client:                  c,
 			Scheme:                  scheme,
+			RoleRequests:            make(map[corev1.ObjectReference]libsveltosv1alpha1.Selector),
 			ClusterMap:              make(map[corev1.ObjectReference]*libsveltosset.Set),
 			RoleRequestClusterMap:   make(map[corev1.ObjectReference]*libsveltosset.Set),
 			ReferenceMap:            make(map[corev1.ObjectReference]*libsveltosset.Set),
@@ -113,5 +115,119 @@ var _ = Describe("ClustersummaryTransformations map functions", func() {
 		Expect(requests).To(HaveLen(2))
 		Expect(requests).To(ContainElement(reconcile.Request{NamespacedName: types.NamespacedName{Name: roleRequest0.Name}}))
 		Expect(requests).To(ContainElement(reconcile.Request{NamespacedName: types.NamespacedName{Name: roleRequest1.Name}}))
+	})
+
+	It("requeueRoleRequestForCluster returns matching RoleRequests", func() {
+		namespace := randomString()
+		cluster := &libsveltosv1alpha1.SveltosCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      randomString(),
+				Namespace: namespace,
+				Labels: map[string]string{
+					"env": "production",
+				},
+			},
+		}
+
+		matchingRoleRequest := &libsveltosv1alpha1.RoleRequest{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: randomString(),
+			},
+			Spec: libsveltosv1alpha1.RoleRequestSpec{
+				ClusterSelector: libsveltosv1alpha1.Selector("env=production"),
+				Admin:           randomString(),
+			},
+		}
+
+		nonMatchingRoleRequest := &libsveltosv1alpha1.RoleRequest{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: randomString(),
+			},
+			Spec: libsveltosv1alpha1.RoleRequestSpec{
+				ClusterSelector: libsveltosv1alpha1.Selector("env=qa"),
+				Admin:           randomString(),
+			},
+		}
+
+		initObjects := []client.Object{
+			matchingRoleRequest,
+			nonMatchingRoleRequest,
+			cluster,
+		}
+
+		c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjects...).Build()
+
+		reconciler := &controllers.RoleRequestReconciler{
+			Client:                  c,
+			Scheme:                  scheme,
+			RoleRequests:            make(map[corev1.ObjectReference]libsveltosv1alpha1.Selector),
+			ClusterMap:              make(map[corev1.ObjectReference]*libsveltosset.Set),
+			RoleRequestClusterMap:   make(map[corev1.ObjectReference]*libsveltosset.Set),
+			ReferenceMap:            make(map[corev1.ObjectReference]*libsveltosset.Set),
+			RoleRequestReferenceMap: make(map[corev1.ObjectReference]*libsveltosset.Set),
+			Mux:                     sync.Mutex{},
+		}
+
+		By("Setting RoleRequestReconciler internal structures")
+		matchingInfo := corev1.ObjectReference{APIVersion: cluster.APIVersion,
+			Kind: libsveltosv1alpha1.SveltosClusterKind, Name: matchingRoleRequest.Name}
+		reconciler.RoleRequests[matchingInfo] = matchingRoleRequest.Spec.ClusterSelector
+		nonMatchingInfo := corev1.ObjectReference{APIVersion: cluster.APIVersion,
+			Kind: libsveltosv1alpha1.SveltosClusterKind, Name: nonMatchingRoleRequest.Name}
+		reconciler.RoleRequests[nonMatchingInfo] = nonMatchingRoleRequest.Spec.ClusterSelector
+
+		// ClusterMap contains, per ClusterName, list of RoleRequest matching it.
+		clusterProfileSet := &libsveltosset.Set{}
+		clusterProfileSet.Insert(&matchingInfo)
+		clusterInfo := corev1.ObjectReference{APIVersion: cluster.APIVersion, Kind: cluster.Kind, Namespace: cluster.Namespace, Name: cluster.Name}
+		reconciler.ClusterMap[clusterInfo] = clusterProfileSet
+
+		// RoleRequestClusterMap contains, per RoleRequest, list of matched Clusters.
+		clusterSet1 := &libsveltosset.Set{}
+		reconciler.RoleRequestClusterMap[nonMatchingInfo] = clusterSet1
+
+		clusterSet2 := &libsveltosset.Set{}
+		clusterSet2.Insert(&clusterInfo)
+		reconciler.RoleRequestClusterMap[matchingInfo] = clusterSet2
+
+		By("Expect only matchingRoleRequest to be requeued")
+		requests := controllers.RequeueRoleRequestForCluster(reconciler, cluster)
+		expected := reconcile.Request{NamespacedName: types.NamespacedName{Name: matchingRoleRequest.Name}}
+		Expect(requests).To(ContainElement(expected))
+
+		By("Changing roleRequest ClusterSelector again to have two ClusterProfiles match")
+		nonMatchingRoleRequest.Spec.ClusterSelector = matchingRoleRequest.Spec.ClusterSelector
+		Expect(c.Update(context.TODO(), nonMatchingRoleRequest)).To(Succeed())
+
+		reconciler.RoleRequests[nonMatchingInfo] = nonMatchingRoleRequest.Spec.ClusterSelector
+
+		clusterSet1.Insert(&clusterInfo)
+		reconciler.RoleRequestClusterMap[nonMatchingInfo] = clusterSet1
+
+		clusterProfileSet.Insert(&nonMatchingInfo)
+		reconciler.ClusterMap[clusterInfo] = clusterProfileSet
+
+		requests = controllers.RequeueRoleRequestForCluster(reconciler, cluster)
+		expected = reconcile.Request{NamespacedName: types.NamespacedName{Name: matchingRoleRequest.Name}}
+		Expect(requests).To(ContainElement(expected))
+		expected = reconcile.Request{NamespacedName: types.NamespacedName{Name: nonMatchingRoleRequest.Name}}
+		Expect(requests).To(ContainElement(expected))
+
+		By("Changing roleRequest ClusterSelector again to have no ClusterProfile match")
+		matchingRoleRequest.Spec.ClusterSelector = libsveltosv1alpha1.Selector("env=qa")
+		Expect(c.Update(context.TODO(), matchingRoleRequest)).To(Succeed())
+		nonMatchingRoleRequest.Spec.ClusterSelector = matchingRoleRequest.Spec.ClusterSelector
+		Expect(c.Update(context.TODO(), nonMatchingRoleRequest)).To(Succeed())
+
+		emptySet := &libsveltosset.Set{}
+		reconciler.RoleRequestClusterMap[matchingInfo] = emptySet
+		reconciler.RoleRequestClusterMap[nonMatchingInfo] = emptySet
+		reconciler.ClusterMap[clusterInfo] = emptySet
+
+		reconciler.RoleRequests[matchingInfo] = matchingRoleRequest.Spec.ClusterSelector
+		reconciler.RoleRequests[nonMatchingInfo] = nonMatchingRoleRequest.Spec.ClusterSelector
+
+		requests = controllers.RequeueRoleRequestForCluster(reconciler, cluster)
+		Expect(requests).To(HaveLen(0))
 	})
 })
