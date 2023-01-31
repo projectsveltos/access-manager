@@ -1,0 +1,33 @@
+# ConfigMap contains a ClusterRole which gives
+# full access
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: full-access
+  namespace: default
+data:
+  role.yaml: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      name: eng-full-access
+    rules:
+    - apiGroups: ["*"]
+      resources: ["*"]
+      verbs: ["*"]
+
+---
+# RoleRequest gives admin 'eng' full access
+# to all clusters matching the label selector
+# dep=eng
+apiVersion: lib.projectsveltos.io/v1alpha1                                                                                 
+kind: RoleRequest                                                                                                          
+metadata:
+  name: full-access
+spec:                                                                                                                      
+  clusterSelector: dep=eng                                                                                                 
+  admin: eng
+  roleRefs:
+  - name: full-access                                                                                                      
+    namespace: default
+    kind: ConfigMap

@@ -52,7 +52,7 @@ const (
 	roleKind                = "Role"
 	clusterRoleKind         = "ClusterRole"
 	// expirationInSecond is the token expiration time.
-	saExpirationInSecond = 24 * 60 * time.Minute
+	saExpirationInSecond = 365 * 24 * 60 * time.Minute
 )
 
 // createServiceAccountInManagedCluster create a ServiceAccount with passed in name in the
