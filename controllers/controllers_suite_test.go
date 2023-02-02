@@ -18,24 +18,35 @@ package controllers_test
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
+	"unicode/utf8"
 
+	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/projectsveltos/access-manager/controllers"
 	"github.com/projectsveltos/access-manager/internal/test/helpers"
+	"github.com/projectsveltos/access-manager/pkg/scope"
 	libsveltosv1alpha1 "github.com/projectsveltos/libsveltos/api/v1alpha1"
 	"github.com/projectsveltos/libsveltos/lib/crd"
+	"github.com/projectsveltos/libsveltos/lib/deployer"
+	libsveltosset "github.com/projectsveltos/libsveltos/lib/set"
 	"github.com/projectsveltos/libsveltos/lib/utils"
 )
 
@@ -71,6 +82,8 @@ var _ = BeforeSuite(func() {
 		panic(err)
 	}
 
+	controllers.CreatFeatureHandlerMaps()
+
 	go func() {
 		By("Starting the manager")
 		err = testEnv.StartManager(ctx)
@@ -83,6 +96,16 @@ var _ = BeforeSuite(func() {
 	Expect(err).To(BeNil())
 	Expect(testEnv.Create(ctx, accessRequestCRD)).To(Succeed())
 	waitForObject(context.TODO(), testEnv.Client, accessRequestCRD)
+
+	roleRequestCRD, err := utils.GetUnstructured(crd.GetRoleRequestCRDYAML())
+	Expect(err).To(BeNil())
+	Expect(testEnv.Create(ctx, roleRequestCRD)).To(Succeed())
+	waitForObject(context.TODO(), testEnv.Client, roleRequestCRD)
+
+	sveltosClusterCRD, err := utils.GetUnstructured(crd.GetSveltosClusterCRDYAML())
+	Expect(err).To(BeNil())
+	Expect(testEnv.Create(ctx, sveltosClusterCRD)).To(Succeed())
+	waitForObject(context.TODO(), testEnv.Client, sveltosClusterCRD)
 
 	if synced := testEnv.GetCache().WaitForCacheSync(ctx); !synced {
 		time.Sleep(time.Second)
@@ -108,6 +131,9 @@ func setupScheme() (*runtime.Scheme, error) {
 		return nil, err
 	}
 	if err := apiextensionsv1.AddToScheme(s); err != nil {
+		return nil, err
+	}
+	if err := rbacv1.AddToScheme(s); err != nil {
 		return nil, err
 	}
 	return s, nil
@@ -146,4 +172,163 @@ func getAccessRequest(namespace, name string) *libsveltosv1alpha1.AccessRequest 
 			},
 		},
 	}
+}
+
+func getRoleRequestReconciler(c client.Client, dep deployer.DeployerInterface) *controllers.RoleRequestReconciler {
+	return &controllers.RoleRequestReconciler{
+		Client:                  c,
+		Scheme:                  scheme,
+		Deployer:                dep,
+		RoleRequests:            make(map[corev1.ObjectReference]libsveltosv1alpha1.Selector),
+		ClusterMap:              make(map[corev1.ObjectReference]*libsveltosset.Set),
+		RoleRequestClusterMap:   make(map[corev1.ObjectReference]*libsveltosset.Set),
+		ReferenceMap:            make(map[corev1.ObjectReference]*libsveltosset.Set),
+		RoleRequestReferenceMap: make(map[corev1.ObjectReference]*libsveltosset.Set),
+		Mux:                     sync.Mutex{},
+	}
+}
+
+func getRoleRequestScope(c client.Client, logger logr.Logger,
+	roleRequest *libsveltosv1alpha1.RoleRequest) *scope.RoleRequestScope {
+
+	classifierScope, err := scope.NewRoleRequestScope(scope.RoleRequestScopeParams{
+		Client:         c,
+		Logger:         logger,
+		RoleRequest:    roleRequest,
+		ControllerName: "rolerequest",
+	})
+	Expect(err).To(BeNil())
+	return classifierScope
+}
+
+func addTypeInformationToObject(scheme *runtime.Scheme, obj client.Object) error {
+	gvks, _, err := scheme.ObjectKinds(obj)
+	if err != nil {
+		return fmt.Errorf("missing apiVersion or kind and cannot assign it; %w", err)
+	}
+
+	for _, gvk := range gvks {
+		if gvk.Kind == "" {
+			continue
+		}
+		if gvk.Version == "" || gvk.Version == runtime.APIVersionInternal {
+			continue
+		}
+		obj.GetObjectKind().SetGroupVersionKind(gvk)
+		break
+	}
+
+	return nil
+}
+
+// createConfigMapWithPolicy creates a configMap with Data policies
+func createConfigMapWithPolicy(namespace, configMapName string, policyStrs ...string) *corev1.ConfigMap {
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      configMapName,
+		},
+		Data: map[string]string{},
+	}
+	for i := range policyStrs {
+		key := fmt.Sprintf("policy%d.yaml", i)
+		if utf8.Valid([]byte(policyStrs[i])) {
+			cm.Data[key] = policyStrs[i]
+		} else {
+			cm.BinaryData[key] = []byte(policyStrs[i])
+		}
+	}
+
+	Expect(addTypeInformationToObject(scheme, cm)).To(Succeed())
+
+	return cm
+}
+
+// createSecretWithPolicy creates a Secret with Data containing base64 encoded policies
+func createSecretWithPolicy(namespace, configMapName string, policyStrs ...string) *corev1.Secret {
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      configMapName,
+		},
+		Data: map[string][]byte{},
+	}
+	for i := range policyStrs {
+		key := fmt.Sprintf("policy%d.yaml", i)
+		secret.Data[key] = []byte(base64.StdEncoding.EncodeToString([]byte(policyStrs[i])))
+	}
+
+	Expect(addTypeInformationToObject(scheme, secret)).To(Succeed())
+
+	return secret
+}
+
+func getRoleRequest(configMaps []corev1.ConfigMap, secrets []corev1.Secret, admin string) *libsveltosv1alpha1.RoleRequest {
+	roleRequest := libsveltosv1alpha1.RoleRequest{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: randomString(),
+		},
+		Spec: libsveltosv1alpha1.RoleRequestSpec{
+			RoleRefs: make([]libsveltosv1alpha1.PolicyRef, 0),
+			Admin:    admin,
+		},
+	}
+
+	for i := range configMaps {
+		roleRequest.Spec.RoleRefs = append(roleRequest.Spec.RoleRefs, libsveltosv1alpha1.PolicyRef{
+			Kind:      string(libsveltosv1alpha1.ConfigMapReferencedResourceKind),
+			Namespace: configMaps[i].Namespace,
+			Name:      configMaps[i].Name,
+		})
+	}
+
+	for i := range secrets {
+		roleRequest.Spec.RoleRefs = append(roleRequest.Spec.RoleRefs, libsveltosv1alpha1.PolicyRef{
+			Kind:      string(libsveltosv1alpha1.SecretReferencedResourceKind),
+			Namespace: secrets[i].Namespace,
+			Name:      secrets[i].Name,
+		})
+	}
+
+	return &roleRequest
+}
+
+// prepareForTesting creates following:
+// - SveltosCluster (and its namespace)
+// - secret containing kubeconfig to access CAPI Cluster
+func prepareForTesting(cluster *libsveltosv1alpha1.SveltosCluster) {
+	By("Create the secret with cluster kubeconfig")
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: cluster.Namespace,
+			Name:      cluster.Name + "-sveltos-kubeconfig",
+		},
+		Data: map[string][]byte{
+			"data": testEnv.Kubeconfig,
+		},
+	}
+
+	By("Create the cluster's namespace")
+	ns := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: cluster.Namespace,
+		},
+	}
+
+	Expect(testEnv.Client.Create(context.TODO(), ns)).To(Succeed())
+	waitForObject(context.TODO(), testEnv.Client, ns)
+
+	Expect(testEnv.Client.Create(context.TODO(), cluster)).To(Succeed())
+	waitForObject(context.TODO(), testEnv.Client, cluster)
+	Expect(addTypeInformationToObject(scheme, cluster)).To(Succeed())
+
+	// Set cluster ready
+	currentCluster := &libsveltosv1alpha1.SveltosCluster{}
+	Expect(testEnv.Client.Get(context.TODO(),
+		types.NamespacedName{Namespace: cluster.Namespace, Name: cluster.Name}, currentCluster)).To(Succeed())
+	currentCluster.Status.Ready = true
+	Expect(testEnv.Status().Update(context.TODO(), currentCluster)).To(Succeed())
+
+	Expect(testEnv.Client.Create(context.TODO(), secret)).To(Succeed())
+	waitForObject(context.TODO(), testEnv.Client, secret)
 }

@@ -10,9 +10,14 @@
 
 Please refere to sveltos [documentation](https://projectsveltos.github.io/sveltos/).
 
-Access manager is a projectsveltos service whose only goal is to generate a kubeconfig using [TokenRequest](https://kubernetes.io/docs/reference/kubernetes-api/authentication-resources/token-request-v1/).
+Access manager is a projectsveltos service whose goals are:
+1) to generate a kubeconfig using [TokenRequest](https://kubernetes.io/docs/reference/kubernetes-api/authentication-resources/token-request-v1/);
+2) process [RoleRequest](https://raw.githubusercontent.com/projectsveltos/libsveltos/main/api/v1alpha1/rolerequest_type.go)
 
-Any other service can request a kubeconfig by creating an AccessRequest.
+RoleRequest are used by platform admin to grant permissions to tenant admins in one or more managed clusters.
+
+AccessRequests are used for sveltos services deployed in the managed clusters that need to access back management cluster.
+Any other service can request a kubeconfig by creating an AccessRequest. 
 Access manager then:
 1. generates kubeconfig;
 2. stores in a secret;

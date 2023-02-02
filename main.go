@@ -17,19 +17,40 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
+	"fmt"
 	"os"
+	"sync"
+	"syscall"
+	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/spf13/pflag"
+
+	corev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	cliflag "k8s.io/component-base/cli/flag"
 	"k8s.io/klog/v2"
+	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 
 	"github.com/projectsveltos/access-manager/controllers"
+	libsveltosv1alpha1 "github.com/projectsveltos/libsveltos/api/v1alpha1"
+	"github.com/projectsveltos/libsveltos/lib/crd"
+	"github.com/projectsveltos/libsveltos/lib/deployer"
+	"github.com/projectsveltos/libsveltos/lib/logsettings"
+	libsveltosset "github.com/projectsveltos/libsveltos/lib/set"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -39,10 +60,12 @@ var (
 	enableLeaderElection bool
 	probeAddr            string
 	concurrentReconciles int
+	workers              int
 )
 
 const (
 	defaultReconcilers = 10
+	defaultWorkers     = 20
 )
 
 func main() {
@@ -59,6 +82,9 @@ func main() {
 	pflag.Parse()
 
 	ctrl.SetLogger(klog.Background())
+
+	// Setup the context that's going to be used in controllers and for the manager.
+	ctx := ctrl.SetupSignalHandler()
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
@@ -84,6 +110,13 @@ func main() {
 		os.Exit(1)
 	}
 
+	d := deployer.GetClient(ctx, ctrl.Log.WithName("deployer"), mgr.GetClient(), workers)
+	controllers.RegisterFeatures(d, setupLog)
+
+	logsettings.RegisterForLogSettings(ctx,
+		libsveltosv1alpha1.ComponentAccessManager, ctrl.Log.WithName("log-setter"),
+		ctrl.GetConfigOrDie())
+
 	if err = (&controllers.AccessRequestReconciler{
 		Client:               mgr.GetClient(),
 		Config:               mgr.GetConfig(),
@@ -91,6 +124,25 @@ func main() {
 		ConcurrentReconciles: concurrentReconciles,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "AccessRequest")
+		os.Exit(1)
+	}
+
+	roleRequestReconciler := &controllers.RoleRequestReconciler{
+		Client:                  mgr.GetClient(),
+		Scheme:                  mgr.GetScheme(),
+		Deployer:                d,
+		RoleRequests:            make(map[corev1.ObjectReference]libsveltosv1alpha1.Selector),
+		ClusterMap:              make(map[corev1.ObjectReference]*libsveltosset.Set),
+		RoleRequestClusterMap:   make(map[corev1.ObjectReference]*libsveltosset.Set),
+		ReferenceMap:            make(map[corev1.ObjectReference]*libsveltosset.Set),
+		RoleRequestReferenceMap: make(map[corev1.ObjectReference]*libsveltosset.Set),
+		Mux:                     sync.Mutex{},
+		ConcurrentReconciles:    concurrentReconciles,
+	}
+	var roleRequestController controller.Controller
+	roleRequestController, err = roleRequestReconciler.SetupWithManager(mgr)
+	if err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "RoleRequest")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder
@@ -104,8 +156,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	go capiWatchers(ctx, mgr,
+		roleRequestReconciler, roleRequestController,
+		setupLog)
+
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
@@ -131,4 +187,64 @@ func initFlags(fs *pflag.FlagSet) {
 		"concurrent-reconciles",
 		defaultReconcilers,
 		"concurrent reconciles is the maximum number of concurrent Reconciles which can be run. Defaults to 10")
+
+	fs.IntVar(
+		&workers,
+		"worker-number",
+		defaultWorkers,
+		"Number of worker. Workers are used to deploy features in clusters")
+}
+
+func capiWatchers(ctx context.Context, mgr ctrl.Manager,
+	roleRequestReconciler *controllers.RoleRequestReconciler, roleRequestController controller.Controller,
+	logger logr.Logger) {
+
+	const maxRetries = 20
+	retries := 0
+	for {
+		capiPresent, err := isCAPIInstalled(ctx, mgr.GetClient())
+		if err != nil {
+			if retries < maxRetries {
+				logger.Info(fmt.Sprintf("failed to verify if CAPI is present: %v", err))
+				time.Sleep(time.Second)
+			}
+			retries++
+		} else {
+			if !capiPresent {
+				setupLog.V(logsettings.LogInfo).Info("CAPI currently not present. Starting CRD watcher")
+				go crd.WatchCustomResourceDefinition(ctx, mgr.GetConfig(), capiCRDHandler, setupLog)
+			} else {
+				setupLog.V(logsettings.LogInfo).Info("CAPI present.")
+				err = roleRequestReconciler.WatchForCAPI(mgr, roleRequestController)
+				if err != nil {
+					continue
+				}
+			}
+			return
+		}
+	}
+}
+
+// isCAPIInstalled returns true if CAPI is installed, false otherwise
+func isCAPIInstalled(ctx context.Context, c client.Client) (bool, error) {
+	clusterCRD := &apiextensionsv1.CustomResourceDefinition{}
+
+	err := c.Get(ctx, types.NamespacedName{Name: "clusters.cluster.x-k8s.io"}, clusterCRD)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return false, nil
+		}
+		return false, err
+	}
+
+	return true, nil
+}
+
+// capiCRDHandler restarts process if a CAPI CRD is updated
+func capiCRDHandler(gvk *schema.GroupVersionKind) {
+	if gvk.Group == clusterv1.GroupVersion.Group {
+		if killErr := syscall.Kill(syscall.Getpid(), syscall.SIGTERM); killErr != nil {
+			panic("kill -TERM failed")
+		}
+	}
 }

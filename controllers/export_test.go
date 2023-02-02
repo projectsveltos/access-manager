@@ -1,5 +1,5 @@
 /*
-Copyright 2022.
+Copyright 2022. projectsveltos.io. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -28,4 +28,39 @@ var (
 	HandleAccessRequest      = (*AccessRequestReconciler).handleAccessRequest
 	AddFinalizer             = (*AccessRequestReconciler).addFinalizer
 	Cleanup                  = (*AccessRequestReconciler).cleanup
+)
+
+var (
+	RequeueRoleRequestForCluster   = (*RoleRequestReconciler).requeueRoleRequestForCluster
+	RequeueRoleRequestForReference = (*RoleRequestReconciler).requeueRoleRequestForReference
+	ProcessRoleRequest             = (*RoleRequestReconciler).processRoleRequest
+	RemoveRoleRequest              = (*RoleRequestReconciler).removeRoleRequest
+	GetMatchingClusters            = (*RoleRequestReconciler).getMatchingClusters
+)
+
+const (
+	ServiceAccountNamespace = serviceAccountNamespace
+)
+
+var (
+	IsClusterPaused         = isClusterPaused
+	GetHandlersForFeature   = getHandlersForFeature
+	CreatFeatureHandlerMaps = creatFeatureHandlerMaps
+	GetSecretData           = getSecretData
+)
+
+var (
+	CreateServiceAccountInManagedCluster     = createServiceAccountInManagedCluster
+	CreateNamespaceInManagedCluster          = createNamespaceInManagedCluster
+	CollectReferencedObjects                 = collectReferencedObjects
+	GetConfigMap                             = getConfigMap
+	GetSecret                                = getSecret
+	DeployReferencedResourceInManagedCluster = deployReferencedResourceInManagedCluster
+	IsClusterRoleOrRole                      = isClusterRoleOrRole
+)
+
+var (
+	DeployRoleRequestInCluster     = deployRoleRequestInCluster
+	UndeployRoleRequestFromCluster = undeployRoleRequestFromCluster
+	RoleRequestHash                = roleRequestHash
 )

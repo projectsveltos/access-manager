@@ -1,0 +1,86 @@
+# Following examples shares all clusters with label env=internal
+# with two tenants: eng and hr
+# eng has full control of namespaces ci-cd and build
+# hr has full control of namespace human-resource
+
+# ConfigMap contains a Role which gives
+# full access to namespace ci-cd and build
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: eng-shared-access
+  namespace: default
+data:
+  ci_cd_role.yaml: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: Role
+    metadata:
+      name: edit-role
+      namespace: ci-cd
+    rules:
+    - apiGroups: ["*"]
+      resources: ["*"]
+      verbs: ["*"]
+  build_role.yaml: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: Role
+    metadata:
+      name: edit-role
+      namespace: build
+    rules:
+    - apiGroups: ["*"]
+      resources: ["*"]
+      verbs: ["*"]
+
+---
+# RoleRequest gives admin 'eng' access to namespaces
+# 'ci-cd' and 'cuild' in all clusters matching the label
+# selector env=internal
+apiVersion: lib.projectsveltos.io/v1alpha1                                                                                 
+kind: RoleRequest                                                                                                          
+metadata:
+  name: eng-access
+spec:                                                                                                                      
+  clusterSelector: env=internal
+  admin: eng
+  roleRefs:
+  - name: eng-shared-access
+    namespace: default
+    kind: ConfigMap
+
+---
+
+# ConfigMap contains a Role which gives
+# full access to namespace human-resource
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hr-shared-access
+  namespace: default
+data:
+  ci_cd_role.yaml: |
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: Role
+    metadata:
+      name: edit-role
+      namespace: human-resource
+    rules:
+    - apiGroups: ["*"]
+      resources: ["*"]
+      verbs: ["*"]
+
+---
+# RoleRequest gives admin 'hr' access to namespace
+# 'human-resource' in all clusters matching the label
+# selector env=internal
+apiVersion: lib.projectsveltos.io/v1alpha1                                                                                 
+kind: RoleRequest                                                                                                          
+metadata:
+  name: hr-access
+spec:                                                                                                                      
+  clusterSelector: env=internal
+  admin: hr
+  roleRefs:
+  - name: hr-shared-access
+    namespace: default
+    kind: ConfigMap
