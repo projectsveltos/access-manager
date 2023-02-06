@@ -344,7 +344,7 @@ kind: Service
 metadata:
   labels:
     control-plane: access-manager
-  name: access-access-manager-metrics-service
+  name: access-manager-metrics-service
   namespace: projectsveltos
 spec:
   ports:
