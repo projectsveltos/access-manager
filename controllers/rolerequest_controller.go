@@ -421,6 +421,9 @@ func (r *RoleRequestReconciler) updateReferenceMaps(roleRequestScope *scope.Role
 			},
 		)
 	}
+
+	// Update list of Clusters currently referenced by RoleRequest
+	r.RoleRequestReferenceMap[*roleRequestInfo] = currentReferences
 }
 
 func (r *RoleRequestReconciler) getCurrentReferences(roleRequestScope *scope.RoleRequestScope) *libsveltosset.Set {
@@ -431,8 +434,10 @@ func (r *RoleRequestReconciler) getCurrentReferences(roleRequestScope *scope.Rol
 		currentReferences.Insert(&corev1.ObjectReference{
 			APIVersion: corev1.SchemeGroupVersion.String(), // the only resources that can be referenced are Secret and ConfigMap
 			Kind:       roleRequestScope.RoleRequest.Spec.RoleRefs[i].Kind,
-			Namespace:  referencedNamespace,
-			Name:       referencedName,
+			// namespace can be set or empty. If empty the resource will
+			// be searched in the cluster namespace at time of deployment
+			Namespace: referencedNamespace,
+			Name:      referencedName,
 		})
 	}
 	return currentReferences

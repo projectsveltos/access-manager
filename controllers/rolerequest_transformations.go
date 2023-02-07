@@ -46,44 +46,52 @@ func (r *RoleRequestReconciler) requeueRoleRequestForReference(
 	r.Mux.Lock()
 	defer r.Mux.Unlock()
 
-	// Following is needed as o.GetObjectKind().GroupVersionKind().Kind is not set
-	var key corev1.ObjectReference
-	switch o.(type) {
-	case *corev1.ConfigMap:
-		key = corev1.ObjectReference{
-			APIVersion: corev1.SchemeGroupVersion.String(),
-			Kind:       string(libsveltosv1alpha1.ConfigMapReferencedResourceKind),
-			Namespace:  o.GetNamespace(),
-			Name:       o.GetName(),
-		}
-	case *corev1.Secret:
-		key = corev1.ObjectReference{
-			APIVersion: corev1.SchemeGroupVersion.String(),
-			Kind:       string(libsveltosv1alpha1.SecretReferencedResourceKind),
-			Namespace:  o.GetNamespace(),
-			Name:       o.GetName(),
-		}
-	default:
-		key = corev1.ObjectReference{
-			APIVersion: o.GetObjectKind().GroupVersionKind().GroupVersion().String(),
-			Kind:       o.GetObjectKind().GroupVersionKind().Kind,
-			Namespace:  o.GetNamespace(),
-			Name:       o.GetName(),
-		}
-	}
+	requests := make([]ctrl.Request, 0)
 
-	logger.V(logs.LogDebug).Info(fmt.Sprintf("referenced key: %s", key))
+	// Namespace for referenced resources can be set or left empty.
+	// When left empty Sveltos will search for a resource with proper kind/name
+	// in the namespace of the cluster being programmed at the time.
+	// So iterate twice. Once using the resource namespace. And once using
+	// empty namespace
+	namespaces := []string{o.GetNamespace(), ""}
+	for i := range namespaces {
+		// Following is needed as o.GetObjectKind().GroupVersionKind().Kind is not set
+		var key corev1.ObjectReference
+		switch o.(type) {
+		case *corev1.ConfigMap:
+			key = corev1.ObjectReference{
+				APIVersion: corev1.SchemeGroupVersion.String(),
+				Kind:       string(libsveltosv1alpha1.ConfigMapReferencedResourceKind),
+				Namespace:  namespaces[i],
+				Name:       o.GetName(),
+			}
+		case *corev1.Secret:
+			key = corev1.ObjectReference{
+				APIVersion: corev1.SchemeGroupVersion.String(),
+				Kind:       string(libsveltosv1alpha1.SecretReferencedResourceKind),
+				Namespace:  namespaces[i],
+				Name:       o.GetName(),
+			}
+		default:
+			key = corev1.ObjectReference{
+				APIVersion: o.GetObjectKind().GroupVersionKind().GroupVersion().String(),
+				Kind:       o.GetObjectKind().GroupVersionKind().Kind,
+				Namespace:  namespaces[i],
+				Name:       o.GetName(),
+			}
+		}
 
-	requests := make([]ctrl.Request, r.getReferenceMapForEntry(&key).Len())
+		logger.V(logs.LogDebug).Info(fmt.Sprintf("referenced key: %s", key))
 
-	consumers := r.getReferenceMapForEntry(&key).Items()
-	for i := range consumers {
-		logger.V(logs.LogDebug).Info(fmt.Sprintf("requeue consumer: %s", consumers[i]))
-		requests[i] = ctrl.Request{
-			NamespacedName: client.ObjectKey{
-				Name:      consumers[i].Name,
-				Namespace: consumers[i].Namespace,
-			},
+		consumers := r.getReferenceMapForEntry(&key).Items()
+		for i := range consumers {
+			logger.V(logs.LogDebug).Info(fmt.Sprintf("requeue consumer: %s", consumers[i]))
+			requests = append(requests, ctrl.Request{
+				NamespacedName: client.ObjectKey{
+					Name:      consumers[i].Name,
+					Namespace: consumers[i].Namespace,
+				},
+			})
 		}
 	}
 

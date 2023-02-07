@@ -80,7 +80,7 @@ var _ = Describe("Deployer", func() {
 		h.Write([]byte(config))
 		hash := h.Sum(nil)
 
-		currentHash, err := controllers.RoleRequestHash(ctx, testEnv.Client, roleRequest, klogr.New())
+		currentHash, err := controllers.RoleRequestHash(ctx, testEnv.Client, randomString(), roleRequest, klogr.New())
 		Expect(err).To(BeNil())
 		Expect(reflect.DeepEqual(currentHash, hash)).To(BeTrue())
 	})
@@ -482,7 +482,7 @@ var _ = Describe("Deployer", func() {
 		Expect(testEnv.Create(context.Background(), roleRequest))
 		waitForObject(context.TODO(), testEnv.Client, roleRequest)
 
-		hash, err := controllers.RoleRequestHash(context.TODO(), testEnv.Client, roleRequest, klogr.New())
+		hash, err := controllers.RoleRequestHash(context.TODO(), testEnv.Client, sveltosCluster.Namespace, roleRequest, klogr.New())
 		Expect(err).To(BeNil())
 		Expect(testEnv.Get(context.TODO(), types.NamespacedName{Name: roleRequest.Name}, roleRequest)).To(Succeed())
 		roleRequest.Status = libsveltosv1alpha1.RoleRequestStatus{
