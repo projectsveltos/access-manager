@@ -344,7 +344,7 @@ kind: Service
 metadata:
   labels:
     control-plane: access-manager
-  name: access-access-manager-metrics-service
+  name: access-manager-metrics-service
   namespace: projectsveltos
 spec:
   ports:
@@ -382,7 +382,7 @@ spec:
         - --v=5
         command:
         - /manager
-        image: gianlucam76/access-manager-amd64:v0.4.0
+        image: gianlucam76/access-manager-amd64:v0.4.1
         livenessProbe:
           httpGet:
             path: /healthz
