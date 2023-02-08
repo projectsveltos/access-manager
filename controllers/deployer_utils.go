@@ -18,7 +18,6 @@ package controllers
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"strings"
 	"time"
@@ -198,7 +197,7 @@ func createNamespaceInManagedCluster(ctx context.Context, remoteClient client.Cl
 }
 
 // collectReferencedObjects collects all referenced configMaps/secrets in control cluster
-func collectReferencedObjects(ctx context.Context, c client.Client,
+func collectReferencedObjects(ctx context.Context, c client.Client, clusterNamespace string,
 	references []libsveltosv1alpha1.PolicyRef, logger logr.Logger) ([]client.Object, error) {
 
 	objects := make([]client.Object, 0)
@@ -206,12 +205,13 @@ func collectReferencedObjects(ctx context.Context, c client.Client,
 		var err error
 		var object client.Object
 		reference := &references[i]
+		namespace := getReferenceResourceNamespace(clusterNamespace, reference.Namespace)
 		if reference.Kind == string(libsveltosv1alpha1.ConfigMapReferencedResourceKind) {
 			object, err = getConfigMap(ctx, c,
-				types.NamespacedName{Namespace: reference.Namespace, Name: reference.Name})
+				types.NamespacedName{Namespace: namespace, Name: reference.Name})
 		} else {
 			object, err = getSecret(ctx, c,
-				types.NamespacedName{Namespace: reference.Namespace, Name: reference.Name})
+				types.NamespacedName{Namespace: namespace, Name: reference.Name})
 		}
 		if err != nil {
 			if apierrors.IsNotFound(err) {
@@ -250,6 +250,9 @@ func getSecret(ctx context.Context, c client.Client, secretName types.Namespaced
 	}
 	if err := c.Get(ctx, secretKey, secret); err != nil {
 		return nil, err
+	}
+	if secret.Type != libsveltosv1alpha1.ClusterProfileSecretType {
+		return nil, libsveltosv1alpha1.ErrSecretTypeNotSupported
 	}
 
 	return secret, nil
@@ -293,25 +296,12 @@ func deployContentOfSecret(ctx context.Context, remoteConfig *rest.Config, remot
 	secret *corev1.Secret, roleRequest *libsveltosv1alpha1.RoleRequest, logger logr.Logger,
 ) ([]corev1.ObjectReference, error) {
 
-	var err error
 	data := make(map[string]string)
 	for key, value := range secret.Data {
-		data[key], err = decode(value)
-		if err != nil {
-			return nil, err
-		}
+		data[key] = string(value)
 	}
 
 	return deployContent(ctx, remoteConfig, remoteClient, secret, data, roleRequest, logger)
-}
-
-func decode(encoded []byte) (string, error) {
-	decoded, err := base64.StdEncoding.DecodeString(string(encoded))
-	if err != nil {
-		return "", err
-	}
-
-	return string(decoded), nil
 }
 
 // deployContent deploys ClusterRoles/Roles contained in a ConfigMap/Secret.
@@ -588,4 +578,15 @@ func isClusterRoleOrRole(resource client.Object, logger logr.Logger) bool {
 	}
 
 	return true
+}
+
+// getReferenceResourceNamespace returns the namespace to use for a referenced resource.
+// If namespace is set on referencedResource, that namespace will be used.
+// If namespace is not set, cluster namespace will be used
+func getReferenceResourceNamespace(clusterNamespace, referencedResourceNamespace string) string {
+	if referencedResourceNamespace != "" {
+		return referencedResourceNamespace
+	}
+
+	return clusterNamespace
 }
