@@ -42,7 +42,7 @@ import (
 	"github.com/projectsveltos/libsveltos/lib/roles"
 )
 
-type getCurrentHash func(ctx context.Context, c client.Client,
+type getCurrentHash func(ctx context.Context, c client.Client, clusterNamespace string,
 	roleRequest *libsveltosv1alpha1.RoleRequest, logger logr.Logger) ([]byte, error)
 
 type feature struct {
@@ -145,14 +145,14 @@ func (r *RoleRequestReconciler) undeployRoleRequest(ctx context.Context, roleReq
 
 // roleRequestHash returns the RoleRequest hash. It considers RoleRequest Spec and
 // all referenced resources
-func roleRequestHash(ctx context.Context, c client.Client,
+func roleRequestHash(ctx context.Context, c client.Client, clusterNamespace string,
 	roleRequest *libsveltosv1alpha1.RoleRequest, logger logr.Logger) ([]byte, error) {
 
 	h := sha256.New()
 	var config string
 	config += render.AsCode(roleRequest.Spec)
 
-	resources, err := collectReferencedObjects(ctx, c, roleRequest.Spec.RoleRefs, logger)
+	resources, err := collectReferencedObjects(ctx, c, clusterNamespace, roleRequest.Spec.RoleRefs, logger)
 	if err != nil {
 		logger.V(logs.LogInfo).Info(fmt.Sprintf("failed to collect referenced resources: %v", err))
 		return nil, err
@@ -172,7 +172,7 @@ func (r *RoleRequestReconciler) processRoleRequest(ctx context.Context, roleRequ
 ) (*libsveltosv1alpha1.ClusterInfo, error) {
 
 	// Get RoleRequest Spec hash (at this very precise moment)
-	currentHash, err := roleRequestHash(ctx, r.Client, roleRequestScope.RoleRequest, logger)
+	currentHash, err := roleRequestHash(ctx, r.Client, cluster.Namespace, roleRequestScope.RoleRequest, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -445,7 +445,7 @@ func deployRoleRequestInCluster(ctx context.Context, c client.Client,
 	}
 
 	var resources []client.Object
-	resources, err = collectReferencedObjects(ctx, c, roleRequest.Spec.RoleRefs, logger)
+	resources, err = collectReferencedObjects(ctx, c, clusterNamespace, roleRequest.Spec.RoleRefs, logger)
 	if err != nil {
 		logger.V(logs.LogInfo).Info(fmt.Sprintf("failed to collect referenced resources: %v", err))
 		return err

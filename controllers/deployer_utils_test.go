@@ -89,6 +89,7 @@ var _ = Describe("Deployer utils", func() {
 				Namespace: randomString(),
 				Name:      randomString(),
 			},
+			Type: libsveltosv1alpha1.ClusterProfileSecretType,
 		}
 
 		roleRequest := getRoleRequest([]corev1.ConfigMap{*configMap}, []corev1.Secret{*secret}, randomString())
@@ -97,21 +98,68 @@ var _ = Describe("Deployer utils", func() {
 		c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjects...).Build()
 
 		// No errors when referenced resources do not exist
-		refs, err := controllers.CollectReferencedObjects(context.TODO(), c, roleRequest.Spec.RoleRefs, klogr.New())
+		refs, err := controllers.CollectReferencedObjects(context.TODO(), c, randomString(), roleRequest.Spec.RoleRefs, klogr.New())
 		Expect(err).To(BeNil())
 		Expect(len(refs)).To(BeZero())
 
 		Expect(c.Create(context.TODO(), configMap)).To(Succeed())
 
 		// No errors when subset of referenced resources do not exist
-		refs, err = controllers.CollectReferencedObjects(context.TODO(), c, roleRequest.Spec.RoleRefs, klogr.New())
+		refs, err = controllers.CollectReferencedObjects(context.TODO(), c, randomString(), roleRequest.Spec.RoleRefs, klogr.New())
 		Expect(err).To(BeNil())
 		Expect(len(refs)).To(Equal(1))
 
 		Expect(c.Create(context.TODO(), secret)).To(Succeed())
 
 		// No errors when all referenced resources exist
-		refs, err = controllers.CollectReferencedObjects(context.TODO(), c, roleRequest.Spec.RoleRefs, klogr.New())
+		refs, err = controllers.CollectReferencedObjects(context.TODO(), c, randomString(), roleRequest.Spec.RoleRefs, klogr.New())
+		Expect(err).To(BeNil())
+		Expect(len(refs)).To(Equal(2))
+	})
+
+	It("collectReferencedObjects collects all existing referenced resources gettting from cluster namespace", func() {
+		clusterNamespace := randomString()
+
+		configMap := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: clusterNamespace,
+				Name:      randomString(),
+			},
+		}
+
+		secret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: clusterNamespace,
+				Name:      randomString(),
+			},
+			Type: libsveltosv1alpha1.ClusterProfileSecretType,
+		}
+
+		roleRequest := getRoleRequest([]corev1.ConfigMap{*configMap}, []corev1.Secret{*secret}, randomString())
+		// Reset the referenced resource namespaces
+		for i := range roleRequest.Spec.RoleRefs {
+			roleRequest.Spec.RoleRefs[i].Namespace = ""
+		}
+
+		initObjects := []client.Object{roleRequest}
+		c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjects...).Build()
+
+		// No errors when referenced resources do not exist
+		refs, err := controllers.CollectReferencedObjects(context.TODO(), c, clusterNamespace, roleRequest.Spec.RoleRefs, klogr.New())
+		Expect(err).To(BeNil())
+		Expect(len(refs)).To(BeZero())
+
+		Expect(c.Create(context.TODO(), configMap)).To(Succeed())
+
+		// No errors when subset of referenced resources do not exist
+		refs, err = controllers.CollectReferencedObjects(context.TODO(), c, clusterNamespace, roleRequest.Spec.RoleRefs, klogr.New())
+		Expect(err).To(BeNil())
+		Expect(len(refs)).To(Equal(1))
+
+		Expect(c.Create(context.TODO(), secret)).To(Succeed())
+
+		// No errors when all referenced resources exist
+		refs, err = controllers.CollectReferencedObjects(context.TODO(), c, clusterNamespace, roleRequest.Spec.RoleRefs, klogr.New())
 		Expect(err).To(BeNil())
 		Expect(len(refs)).To(Equal(2))
 	})
@@ -146,6 +194,7 @@ var _ = Describe("Deployer utils", func() {
 				Namespace: randomString(),
 				Name:      randomString(),
 			},
+			Type: libsveltosv1alpha1.ClusterProfileSecretType,
 		}
 
 		c := fake.NewClientBuilder().WithScheme(scheme).Build()
@@ -162,6 +211,26 @@ var _ = Describe("Deployer utils", func() {
 		Expect(currentSecret).ToNot(BeNil())
 		Expect(currentSecret.Namespace).To(Equal(secret.Namespace))
 		Expect(currentSecret.Name).To(Equal(secret.Name))
+	})
+
+	It("getSecret returns an error when type is different than ClusterProfileSecretType", func() {
+		wrongSecretType := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: randomString(),
+				Name:      randomString(),
+			},
+			Data: map[string][]byte{
+				randomString(): []byte(randomString()),
+			},
+		}
+
+		c := fake.NewClientBuilder().WithScheme(scheme).Build()
+		Expect(c.Create(context.TODO(), wrongSecretType)).To(Succeed())
+
+		secretName := types.NamespacedName{Namespace: wrongSecretType.Namespace, Name: wrongSecretType.Name}
+		_, err := controllers.GetSecret(context.TODO(), c, secretName)
+		Expect(err).ToNot(BeNil())
+		Expect(err.Error()).To(Equal(libsveltosv1alpha1.ErrSecretTypeNotSupported.Error()))
 	})
 
 	It("deployReferencedResourceInManagedCluster deploys all resources contained in referenced ConfigMaps/Secrets", func() {
@@ -280,6 +349,23 @@ var _ = Describe("Deployer utils", func() {
 		Expect(addTypeInformationToObject(scheme, &clusterRole)).To(Succeed())
 		Expect(controllers.IsClusterRoleOrRole(&clusterRole, klogr.New())).To(BeTrue())
 	})
+
+	It("getReferenceResourceNamespace returns the referenced resource namespace when set. cluster namespace otherwise.", func() {
+		referecedResource := libsveltosv1alpha1.PolicyRef{
+			Namespace: "",
+			Name:      randomString(),
+			Kind:      string(libsveltosv1alpha1.ConfigMapReferencedResourceKind),
+		}
+
+		clusterNamespace := randomString()
+		Expect(controllers.GetReferenceResourceNamespace(clusterNamespace, referecedResource.Namespace)).To(
+			Equal(clusterNamespace))
+
+		referecedResource.Namespace = randomString()
+		Expect(controllers.GetReferenceResourceNamespace(clusterNamespace, referecedResource.Namespace)).To(
+			Equal(referecedResource.Namespace))
+	})
+
 })
 
 func validateLabels(deployedResource, ownerResource client.Object) bool {

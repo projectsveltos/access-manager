@@ -57,6 +57,7 @@ var (
 	GetSecret                                = getSecret
 	DeployReferencedResourceInManagedCluster = deployReferencedResourceInManagedCluster
 	IsClusterRoleOrRole                      = isClusterRoleOrRole
+	GetReferenceResourceNamespace            = getReferenceResourceNamespace
 )
 
 var (
