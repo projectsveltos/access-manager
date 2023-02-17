@@ -12,7 +12,7 @@ Please refere to sveltos [documentation](https://projectsveltos.github.io/svelto
 
 Access manager is a projectsveltos service whose goals are:
 1) to generate a kubeconfig using [TokenRequest](https://kubernetes.io/docs/reference/kubernetes-api/authentication-resources/token-request-v1/);
-2) process [RoleRequest](https://raw.githubusercontent.com/projectsveltos/libsveltos/v0.5.0/api/v1alpha1/rolerequest_type.go)
+2) process [RoleRequest](https://raw.githubusercontent.com/projectsveltos/libsveltos/main/api/v1alpha1/rolerequest_type.go)
 
 RoleRequest are used by platform admin to grant permissions to tenant admins in one or more managed clusters.
 
@@ -24,12 +24,13 @@ Access manager then:
 3. updates AccessRequest Status with the information on the Secret containing the kubeconfig;
 4. continuosly regenerate the token (whose expiration is set to 10 minutes)
 
-## Contributing [![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/projectsveltos/sveltos-manager/issues)
-:heart: Your contributions are always welcome!
-If you have questions, noticed any bug or want to get the latest project news, you can connect with us in the following ways:
-1. Open a bug/feature enhancement on github;
-2. Chat with us on the Slack in the [#projectsveltos](https://join.slack.com/t/projectsveltos/shared_invite/zt-1hraownbr-W8NTs6LTimxLPB8Erj8Q6Q) channel;
-3. Submit a pull request.
+## Contributing 
+
+❤️ Your contributions are always welcome! If you want to contribute, have questions, noticed any bug or want to get the latest project news, you can connect with us in the following ways:
+
+1. Open a bug/feature enhancement on github [![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat)](https://github.com/projectsveltos/sveltos-manager/issues)
+2. Chat with us on the Slack in the #projectsveltos channel [![Slack](https://img.shields.io/badge/join%20slack-%23projectsveltos-brighteen)](https://join.slack.com/t/projectsveltos/shared_invite/zt-1hraownbr-W8NTs6LTimxLPB8Erj8Q6Q)
+3. [Contact Us](mailto:support@projectsveltos.io)
 
 ## License
 
