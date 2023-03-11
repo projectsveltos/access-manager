@@ -180,6 +180,26 @@ rules:
 - apiGroups:
   - lib.projectsveltos.io
   resources:
+  - eventreports
+  verbs:
+  - create
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - lib.projectsveltos.io
+  resources:
+  - healthcheckreports
+  verbs:
+  - create
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - lib.projectsveltos.io
+  resources:
   - rolerequests
   verbs:
   - create
@@ -382,7 +402,7 @@ spec:
         - --v=5
         command:
         - /manager
-        image: projectsveltos/access-manager-amd64:main
+        image: projectsveltos/access-manager-amd64:dev
         livenessProbe:
           httpGet:
             path: /healthz

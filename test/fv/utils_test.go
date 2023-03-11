@@ -63,7 +63,7 @@ func getAccessRequest(namePrefix string) *libsveltosv1alpha1.AccessRequest {
 		Spec: libsveltosv1alpha1.AccessRequestSpec{
 			Namespace: namespace,
 			Name:      name + "-classifier-agent",
-			Type:      libsveltosv1alpha1.ClassifierAgentRequest,
+			Type:      libsveltosv1alpha1.SveltosAgentRequest,
 			ControlPlaneEndpoint: clusterv1.APIEndpoint{
 				Host: "https://192.168.10.22",
 				Port: int32(6433),
