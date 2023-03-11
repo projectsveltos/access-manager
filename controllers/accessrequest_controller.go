@@ -69,6 +69,8 @@ type AccessRequestReconciler struct {
 //+kubebuilder:rbac:groups=lib.projectsveltos.io,resources=accessrequests/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=lib.projectsveltos.io,resources=accessrequests/finalizers,verbs=update
 //+kubebuilder:rbac:groups=lib.projectsveltos.io,resources=classifierreports,verbs=create;list;get;update;watch
+//+kubebuilder:rbac:groups=lib.projectsveltos.io,resources=eventreports,verbs=create;list;get;update;watch
+//+kubebuilder:rbac:groups=lib.projectsveltos.io,resources=healthcheckreports,verbs=create;list;get;update;watch
 //+kubebuilder:rbac:groups="",resources=serviceaccounts,verbs=create;list;get;delete;update;watch
 //+kubebuilder:rbac:groups="",resources=serviceaccounts/token,verbs=create;list;get;delete;update;watch
 //+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles,verbs=create;get;delete;update;list;watch
@@ -331,7 +333,7 @@ func (r *AccessRequestReconciler) createRoleAndRoleBinding(ctx context.Context,
 
 	var rules []rbacv1.PolicyRule
 	switch ar.Spec.Type {
-	case libsveltosv1alpha1.ClassifierAgentRequest:
+	case libsveltosv1alpha1.SveltosAgentRequest:
 		rules = r.getClassifierPolicyRules()
 	default:
 		return fmt.Errorf("unknow type %s", ar.Spec.Type)
@@ -413,6 +415,16 @@ func (r *AccessRequestReconciler) getClassifierPolicyRules() []rbacv1.PolicyRule
 		{
 			APIGroups: []string{"lib.projectsveltos.io"},
 			Resources: []string{"classifierreports"},
+			Verbs:     []string{"create", "get", "list", "update"},
+		},
+		{
+			APIGroups: []string{"lib.projectsveltos.io"},
+			Resources: []string{"healthcheckreports"},
+			Verbs:     []string{"create", "get", "list", "update"},
+		},
+		{
+			APIGroups: []string{"lib.projectsveltos.io"},
+			Resources: []string{"eventreports"},
 			Verbs:     []string{"create", "get", "list", "update"},
 		},
 	}
