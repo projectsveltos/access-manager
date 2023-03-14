@@ -130,6 +130,26 @@ rules:
 - apiGroups:
   - lib.projectsveltos.io
   resources:
+  - eventreports
+  verbs:
+  - create
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - lib.projectsveltos.io
+  resources:
+  - healthcheckreports
+  verbs:
+  - create
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - lib.projectsveltos.io
+  resources:
   - rolerequests
   verbs:
   - create

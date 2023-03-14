@@ -42,7 +42,7 @@ var _ = Describe("AccessRequest Predicates: IfNewDeletedOrSpecChange", func() {
 			Spec: libsveltosv1alpha1.AccessRequestSpec{
 				Namespace: randomString(),
 				Name:      randomString(),
-				Type:      libsveltosv1alpha1.ClassifierAgentRequest,
+				Type:      libsveltosv1alpha1.SveltosAgentRequest,
 			},
 		}
 	})
