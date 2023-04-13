@@ -179,7 +179,9 @@ func deleteAndVerifyCleanup(accessRequest *libsveltosv1alpha1.AccessRequest) {
 	}, timeout, pollingInterval).Should(BeTrue())
 }
 
-func getRoleRequest(namePrefix, admin string, clusterLabels map[string]string) *libsveltosv1alpha1.RoleRequest {
+func getRoleRequest(namePrefix, saNamespace, saName string,
+	clusterLabels map[string]string) *libsveltosv1alpha1.RoleRequest {
+
 	selector := ""
 	for k := range clusterLabels {
 		if selector != "" {
@@ -192,8 +194,9 @@ func getRoleRequest(namePrefix, admin string, clusterLabels map[string]string) *
 			Name: namePrefix + randomString(),
 		},
 		Spec: libsveltosv1alpha1.RoleRequestSpec{
-			ClusterSelector: libsveltosv1alpha1.Selector(selector),
-			Admin:           admin,
+			ClusterSelector:         libsveltosv1alpha1.Selector(selector),
+			ServiceAccountNamespace: saNamespace,
+			ServiceAccountName:      saName,
 		},
 	}
 
@@ -233,4 +236,18 @@ func getKindWorkloadClusterKubeconfig() (client.Client, error) {
 		return nil, err
 	}
 	return client.New(restConfig, client.Options{Scheme: scheme})
+}
+
+// getServiceAccountNameInManagedCluster returns the name of the ServiceAccount in the managed
+// cluster.
+// namespace, name are the namespace and name of the ServiceAccount in the management cluster
+// for which a RoleRequest was created.
+func getServiceAccountNameInManagedCluster(namespace, name string) string {
+	// A RoleRequest contains the Namespace/Name of the ServiceAccount in the management
+	// cluster for which a RoleRequest was issued (request to grant permission in managed clusters).
+	// When processing a RoleRequest, Sveltos creates a ServiceAccount in the managed cluster.
+	// Such ServiceAccount is created in the "projectsveltos" namespace.
+	// This method returns the name of the ServiceAccount in the managed cluster (name cannot
+	// match the one in the management cluster to avoid clashes)
+	return fmt.Sprintf("%s--%s", namespace, name)
 }

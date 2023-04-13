@@ -263,14 +263,17 @@ func createSecretWithPolicy(namespace, configMapName string, policyStrs ...strin
 	return secret
 }
 
-func getRoleRequest(configMaps []corev1.ConfigMap, secrets []corev1.Secret, admin string) *libsveltosv1alpha1.RoleRequest {
+func getRoleRequest(configMaps []corev1.ConfigMap, secrets []corev1.Secret,
+	saNamesapce, saName string) *libsveltosv1alpha1.RoleRequest {
+
 	roleRequest := libsveltosv1alpha1.RoleRequest{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: randomString(),
 		},
 		Spec: libsveltosv1alpha1.RoleRequestSpec{
-			RoleRefs: make([]libsveltosv1alpha1.PolicyRef, 0),
-			Admin:    admin,
+			RoleRefs:                make([]libsveltosv1alpha1.PolicyRef, 0),
+			ServiceAccountName:      saName,
+			ServiceAccountNamespace: saNamesapce,
 		},
 	}
 

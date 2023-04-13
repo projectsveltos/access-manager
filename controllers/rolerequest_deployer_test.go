@@ -55,20 +55,23 @@ var _ = Describe("Deployer", func() {
 		waitForObject(context.TODO(), testEnv.Client, ns)
 
 		viewClusterRoleName := randomString()
-		configMap := createConfigMapWithPolicy(referecedResourceNamespace, randomString(), fmt.Sprintf(viewClusterRole, viewClusterRoleName))
+		configMap := createConfigMapWithPolicy(referecedResourceNamespace, randomString(),
+			fmt.Sprintf(viewClusterRole, viewClusterRoleName))
 
 		Expect(testEnv.Create(context.TODO(), configMap)).To(Succeed())
 		waitForObject(context.TODO(), testEnv.Client, configMap)
 		Expect(addTypeInformationToObject(scheme, configMap)).To(Succeed())
 
 		modifyClusterRoleName := randomString()
-		secret := createSecretWithPolicy(referecedResourceNamespace, randomString(), fmt.Sprintf(modifyClusterRole, modifyClusterRoleName))
+		secret := createSecretWithPolicy(referecedResourceNamespace, randomString(),
+			fmt.Sprintf(modifyClusterRole, modifyClusterRoleName))
 
 		Expect(testEnv.Create(context.TODO(), secret)).To(Succeed())
 		waitForObject(context.TODO(), testEnv.Client, secret)
 		Expect(addTypeInformationToObject(scheme, secret)).To(Succeed())
 
-		roleRequest := getRoleRequest([]corev1.ConfigMap{*configMap}, []corev1.Secret{*secret}, randomString())
+		roleRequest := getRoleRequest([]corev1.ConfigMap{*configMap}, []corev1.Secret{*secret},
+			randomString(), randomString())
 		Expect(testEnv.Create(context.TODO(), roleRequest)).To(Succeed())
 		waitForObject(context.TODO(), testEnv.Client, roleRequest)
 
@@ -80,7 +83,8 @@ var _ = Describe("Deployer", func() {
 		h.Write([]byte(config))
 		hash := h.Sum(nil)
 
-		currentHash, err := controllers.RoleRequestHash(ctx, testEnv.Client, randomString(), roleRequest, klogr.New())
+		currentHash, err := controllers.RoleRequestHash(ctx, testEnv.Client, randomString(),
+			roleRequest, klogr.New())
 		Expect(err).To(BeNil())
 		Expect(reflect.DeepEqual(currentHash, hash)).To(BeTrue())
 	})
@@ -107,26 +111,29 @@ var _ = Describe("Deployer", func() {
 		waitForObject(context.TODO(), testEnv.Client, ns)
 
 		viewClusterRoleName := randomString()
-		configMap := createConfigMapWithPolicy(referecedResourceNamespace, randomString(), fmt.Sprintf(viewClusterRole, viewClusterRoleName))
+		configMap := createConfigMapWithPolicy(referecedResourceNamespace, randomString(),
+			fmt.Sprintf(viewClusterRole, viewClusterRoleName))
 
 		Expect(testEnv.Create(context.TODO(), configMap)).To(Succeed())
 		waitForObject(context.TODO(), testEnv.Client, configMap)
 		Expect(addTypeInformationToObject(scheme, configMap)).To(Succeed())
 
 		modifyClusterRoleName := randomString()
-		secret := createSecretWithPolicy(referecedResourceNamespace, randomString(), fmt.Sprintf(modifyClusterRole, modifyClusterRoleName))
+		secret := createSecretWithPolicy(referecedResourceNamespace, randomString(),
+			fmt.Sprintf(modifyClusterRole, modifyClusterRoleName))
 
 		Expect(testEnv.Create(context.TODO(), secret)).To(Succeed())
 		waitForObject(context.TODO(), testEnv.Client, secret)
 		Expect(addTypeInformationToObject(scheme, secret)).To(Succeed())
 
-		roleRequest := getRoleRequest([]corev1.ConfigMap{*configMap}, []corev1.Secret{*secret}, randomString())
+		roleRequest := getRoleRequest([]corev1.ConfigMap{*configMap}, []corev1.Secret{*secret},
+			randomString(), randomString())
 		Expect(testEnv.Create(context.TODO(), roleRequest)).To(Succeed())
 		waitForObject(context.TODO(), testEnv.Client, roleRequest)
 
-		Expect(controllers.DeployRoleRequestInCluster(context.TODO(), testEnv.Client, sveltosCluster.Namespace, sveltosCluster.Name,
-			roleRequest.Name, libsveltosv1alpha1.FeatureRoleRequest, libsveltosv1alpha1.ClusterTypeSveltos,
-			deployer.Options{}, klogr.New())).To(Succeed())
+		Expect(controllers.DeployRoleRequestInCluster(context.TODO(), testEnv.Client,
+			sveltosCluster.Namespace, sveltosCluster.Name, roleRequest.Name, libsveltosv1alpha1.FeatureRoleRequest,
+			libsveltosv1alpha1.ClusterTypeSveltos, deployer.Options{}, klogr.New())).To(Succeed())
 
 		// Verify all ClusterRoles are present
 		Eventually(func() bool {
@@ -151,6 +158,10 @@ var _ = Describe("Deployer", func() {
 			return validateLabels(currentClusterRole, secret)
 		}, timeout, pollingInterval).Should(BeTrue())
 
+		// Name of the ServiceAccount created by Sveltos in the managed cluster
+		saName := controllers.GetServiceAccountNameInManagedCluster(
+			roleRequest.Spec.ServiceAccountNamespace, roleRequest.Spec.ServiceAccountName)
+
 		// Verify ClusterRoleBinding are present
 		currentClusterRoleBinding := &rbacv1.ClusterRoleBinding{}
 		Expect(testEnv.Get(context.TODO(),
@@ -158,7 +169,7 @@ var _ = Describe("Deployer", func() {
 			currentClusterRoleBinding)).To(Succeed())
 		Expect(currentClusterRoleBinding.Subjects).ToNot(BeNil())
 		Expect(len(currentClusterRoleBinding.Subjects)).To(Equal(1))
-		Expect(currentClusterRoleBinding.Subjects[0].Name).To(Equal(roleRequest.Spec.Admin))
+		Expect(currentClusterRoleBinding.Subjects[0].Name).To(Equal(saName))
 		Expect(currentClusterRoleBinding.Subjects[0].Namespace).To(Equal(controllers.ServiceAccountNamespace))
 
 		Expect(testEnv.Get(context.TODO(),
@@ -166,13 +177,13 @@ var _ = Describe("Deployer", func() {
 			currentClusterRoleBinding)).To(Succeed())
 		Expect(currentClusterRoleBinding.Subjects).ToNot(BeNil())
 		Expect(len(currentClusterRoleBinding.Subjects)).To(Equal(1))
-		Expect(currentClusterRoleBinding.Subjects[0].Name).To(Equal(roleRequest.Spec.Admin))
+		Expect(currentClusterRoleBinding.Subjects[0].Name).To(Equal(saName))
 		Expect(currentClusterRoleBinding.Subjects[0].Namespace).To(Equal(controllers.ServiceAccountNamespace))
 
 		// Verify ServiceAccount is present
 		currentServiceAccount := &corev1.ServiceAccount{}
 		Expect(testEnv.Get(context.TODO(),
-			types.NamespacedName{Namespace: controllers.ServiceAccountNamespace, Name: roleRequest.Spec.Admin},
+			types.NamespacedName{Namespace: controllers.ServiceAccountNamespace, Name: saName},
 			currentServiceAccount)).To(Succeed())
 	})
 
@@ -198,10 +209,12 @@ var _ = Describe("Deployer", func() {
 		waitForObject(context.TODO(), testEnv.Client, ns)
 
 		viewClusterRoleName := randomString()
-		configMap1 := createConfigMapWithPolicy(referecedResourceNamespace, randomString(), fmt.Sprintf(viewClusterRole, viewClusterRoleName))
+		configMap1 := createConfigMapWithPolicy(referecedResourceNamespace, randomString(),
+			fmt.Sprintf(viewClusterRole, viewClusterRoleName))
 
 		viewRoleName := randomString()
-		configMap2 := createConfigMapWithPolicy(referecedResourceNamespace, randomString(), fmt.Sprintf(viewRole, viewRoleName))
+		configMap2 := createConfigMapWithPolicy(referecedResourceNamespace, randomString(),
+			fmt.Sprintf(viewRole, viewRoleName))
 
 		Expect(testEnv.Create(context.TODO(), configMap1)).To(Succeed())
 		waitForObject(context.TODO(), testEnv.Client, configMap1)
@@ -211,13 +224,14 @@ var _ = Describe("Deployer", func() {
 		waitForObject(context.TODO(), testEnv.Client, configMap2)
 		Expect(addTypeInformationToObject(scheme, configMap2)).To(Succeed())
 
-		roleRequest := getRoleRequest([]corev1.ConfigMap{*configMap1, *configMap2}, []corev1.Secret{}, randomString())
+		roleRequest := getRoleRequest([]corev1.ConfigMap{*configMap1, *configMap2}, []corev1.Secret{},
+			randomString(), randomString())
 		Expect(testEnv.Create(context.TODO(), roleRequest)).To(Succeed())
 		waitForObject(context.TODO(), testEnv.Client, roleRequest)
 
-		Expect(controllers.DeployRoleRequestInCluster(context.TODO(), testEnv.Client, sveltosCluster.Namespace, sveltosCluster.Name,
-			roleRequest.Name, libsveltosv1alpha1.FeatureRoleRequest, libsveltosv1alpha1.ClusterTypeSveltos,
-			deployer.Options{}, klogr.New())).To(Succeed())
+		Expect(controllers.DeployRoleRequestInCluster(context.TODO(), testEnv.Client, sveltosCluster.Namespace,
+			sveltosCluster.Name, roleRequest.Name, libsveltosv1alpha1.FeatureRoleRequest,
+			libsveltosv1alpha1.ClusterTypeSveltos, deployer.Options{}, klogr.New())).To(Succeed())
 
 		// Verify ClusterRole is present
 		Eventually(func() bool {
@@ -231,6 +245,10 @@ var _ = Describe("Deployer", func() {
 			return validateLabels(currentClusterRole, configMap1)
 		}, timeout, pollingInterval).Should(BeTrue())
 
+		// Name of the ServiceAccount created by Sveltos in the managed cluster
+		saName := controllers.GetServiceAccountNameInManagedCluster(
+			roleRequest.Spec.ServiceAccountNamespace, roleRequest.Spec.ServiceAccountName)
+
 		// Verify ClusterRoleBinding is present
 		currentClusterRoleBinding := &rbacv1.ClusterRoleBinding{}
 		Expect(testEnv.Get(context.TODO(),
@@ -238,7 +256,7 @@ var _ = Describe("Deployer", func() {
 			currentClusterRoleBinding)).To(Succeed())
 		Expect(currentClusterRoleBinding.Subjects).ToNot(BeNil())
 		Expect(len(currentClusterRoleBinding.Subjects)).To(Equal(1))
-		Expect(currentClusterRoleBinding.Subjects[0].Name).To(Equal(roleRequest.Spec.Admin))
+		Expect(currentClusterRoleBinding.Subjects[0].Name).To(Equal(saName))
 		Expect(currentClusterRoleBinding.Subjects[0].Namespace).To(Equal(controllers.ServiceAccountNamespace))
 
 		// Verify Role is present
@@ -260,18 +278,19 @@ var _ = Describe("Deployer", func() {
 			roleBinding)).To(Succeed())
 		Expect(roleBinding.Subjects).ToNot(BeNil())
 		Expect(len(roleBinding.Subjects)).To(Equal(1))
-		Expect(roleBinding.Subjects[0].Name).To(Equal(roleRequest.Spec.Admin))
+		Expect(roleBinding.Subjects[0].Name).To(Equal(saName))
 		Expect(roleBinding.Subjects[0].Namespace).To(Equal(controllers.ServiceAccountNamespace))
 
 		// Verify ServiceAccount is present
 		currentServiceAccount := &corev1.ServiceAccount{}
 		Expect(testEnv.Get(context.TODO(),
-			types.NamespacedName{Namespace: controllers.ServiceAccountNamespace, Name: roleRequest.Spec.Admin},
+			types.NamespacedName{Namespace: controllers.ServiceAccountNamespace, Name: saName},
 			currentServiceAccount)).To(Succeed())
 
 		// Update RoleRequest to not reference ConfigMap anymore
 		currentRoleRequest := &libsveltosv1alpha1.RoleRequest{}
-		Expect(testEnv.Get(context.TODO(), types.NamespacedName{Name: roleRequest.Name}, currentRoleRequest)).To(Succeed())
+		Expect(testEnv.Get(context.TODO(), types.NamespacedName{Name: roleRequest.Name},
+			currentRoleRequest)).To(Succeed())
 		currentRoleRequest.Spec.RoleRefs = make([]libsveltosv1alpha1.PolicyRef, 0)
 		Expect(testEnv.Update(context.TODO(), currentRoleRequest)).To(Succeed())
 
@@ -287,9 +306,9 @@ var _ = Describe("Deployer", func() {
 		}, timeout, pollingInterval).Should(BeTrue())
 
 		// Verify stale resources are gone
-		Expect(controllers.DeployRoleRequestInCluster(context.TODO(), testEnv.Client, sveltosCluster.Namespace, sveltosCluster.Name,
-			roleRequest.Name, libsveltosv1alpha1.FeatureRoleRequest, libsveltosv1alpha1.ClusterTypeSveltos,
-			deployer.Options{}, klogr.New())).To(Succeed())
+		Expect(controllers.DeployRoleRequestInCluster(context.TODO(), testEnv.Client, sveltosCluster.Namespace,
+			sveltosCluster.Name, roleRequest.Name, libsveltosv1alpha1.FeatureRoleRequest,
+			libsveltosv1alpha1.ClusterTypeSveltos, deployer.Options{}, klogr.New())).To(Succeed())
 
 		// Verify ClusterRole is gone
 		Eventually(func() bool {
@@ -320,7 +339,8 @@ var _ = Describe("Deployer", func() {
 
 		prepareForTesting(&sveltosCluster)
 
-		roleRequest := getRoleRequest([]corev1.ConfigMap{}, []corev1.Secret{}, randomString())
+		roleRequest := getRoleRequest([]corev1.ConfigMap{}, []corev1.Secret{},
+			randomString(), randomString())
 		Expect(testEnv.Create(context.TODO(), roleRequest)).To(Succeed())
 		waitForObject(context.TODO(), testEnv.Client, roleRequest)
 		Expect(addTypeInformationToObject(scheme, roleRequest)).To(Succeed())
@@ -362,9 +382,9 @@ var _ = Describe("Deployer", func() {
 		Expect(testEnv.Create(context.TODO(), clusterRoleBinding)).To(Succeed())
 		waitForObject(context.TODO(), testEnv.Client, clusterRoleBinding)
 
-		Expect(controllers.UndeployRoleRequestFromCluster(context.TODO(), testEnv.Client, sveltosCluster.Namespace, sveltosCluster.Name,
-			roleRequest.Name, libsveltosv1alpha1.FeatureRoleRequest, libsveltosv1alpha1.ClusterTypeSveltos,
-			deployer.Options{}, klogr.New())).To(Succeed())
+		Expect(controllers.UndeployRoleRequestFromCluster(context.TODO(), testEnv.Client, sveltosCluster.Namespace,
+			sveltosCluster.Name, roleRequest.Name, libsveltosv1alpha1.FeatureRoleRequest,
+			libsveltosv1alpha1.ClusterTypeSveltos, deployer.Options{}, klogr.New())).To(Succeed())
 
 		// Verify ClusterRole is gone
 		Eventually(func() bool {
@@ -406,7 +426,8 @@ var _ = Describe("Deployer", func() {
 		Expect(testEnv.Create(context.TODO(), ns)).To(Succeed())
 		waitForObject(context.TODO(), testEnv.Client, ns)
 
-		roleRequest := getRoleRequest([]corev1.ConfigMap{}, []corev1.Secret{}, randomString())
+		roleRequest := getRoleRequest([]corev1.ConfigMap{}, []corev1.Secret{},
+			randomString(), randomString())
 		Expect(testEnv.Create(context.TODO(), roleRequest)).To(Succeed())
 		waitForObject(context.TODO(), testEnv.Client, roleRequest)
 
@@ -417,9 +438,9 @@ var _ = Describe("Deployer", func() {
 		Expect(testEnv.List(context.TODO(), secretList, listOptions...)).To(Succeed())
 		numberOfSecrets := len(secretList.Items)
 
-		Expect(controllers.DeployRoleRequestInCluster(context.TODO(), testEnv.Client, sveltosCluster.Namespace, sveltosCluster.Name,
-			roleRequest.Name, libsveltosv1alpha1.FeatureRoleRequest, libsveltosv1alpha1.ClusterTypeSveltos,
-			deployer.Options{}, klogr.New())).To(Succeed())
+		Expect(controllers.DeployRoleRequestInCluster(context.TODO(), testEnv.Client, sveltosCluster.Namespace,
+			sveltosCluster.Name, roleRequest.Name, libsveltosv1alpha1.FeatureRoleRequest,
+			libsveltosv1alpha1.ClusterTypeSveltos, deployer.Options{}, klogr.New())).To(Succeed())
 
 		// Secret with kubeconfig for serviceAccount is created in the cluster namespace by above DeployRoleRequestInCluster
 		Eventually(func() bool {
@@ -428,9 +449,9 @@ var _ = Describe("Deployer", func() {
 			return err == nil && len(secretList.Items) == numberOfSecrets+1
 		}, timeout, pollingInterval).Should(BeTrue())
 
-		Expect(controllers.UndeployRoleRequestFromCluster(ctx, testEnv.Client, sveltosCluster.Namespace, sveltosCluster.Name,
-			roleRequest.Name, libsveltosv1alpha1.FeatureRoleRequest, libsveltosv1alpha1.ClusterTypeSveltos,
-			deployer.Options{}, klogr.New())).To(Succeed())
+		Expect(controllers.UndeployRoleRequestFromCluster(ctx, testEnv.Client, sveltosCluster.Namespace,
+			sveltosCluster.Name, roleRequest.Name, libsveltosv1alpha1.FeatureRoleRequest,
+			libsveltosv1alpha1.ClusterTypeSveltos, deployer.Options{}, klogr.New())).To(Succeed())
 
 		// Secret with kubeconfig for serviceAccount is deleted in the cluster namespace by above UndeployRoleRequestFromCluster
 		Eventually(func() bool {
@@ -446,7 +467,7 @@ var _ = Describe("Deployer", func() {
 		Expect(dep.RegisterFeatureID(libsveltosv1alpha1.FeatureRoleRequest)).To(Succeed())
 
 		roleRequestReconciler := getRoleRequestReconciler(testEnv.Client, dep)
-		roleRequest := getRoleRequest(nil, nil, randomString())
+		roleRequest := getRoleRequest(nil, nil, randomString(), randomString())
 		roleRequestScope := getRoleRequestScope(testEnv.Client, klogr.New(), roleRequest)
 
 		sveltosCluster := libsveltosv1alpha1.SveltosCluster{
@@ -458,8 +479,8 @@ var _ = Describe("Deployer", func() {
 		prepareForTesting(&sveltosCluster)
 
 		f := controllers.GetHandlersForFeature(libsveltosv1alpha1.FeatureRoleRequest)
-		clusterInfo, err := controllers.ProcessRoleRequest(roleRequestReconciler, context.TODO(), roleRequestScope,
-			getClusterRef(&sveltosCluster), f, klogr.New())
+		clusterInfo, err := controllers.ProcessRoleRequest(roleRequestReconciler, context.TODO(),
+			roleRequestScope, getClusterRef(&sveltosCluster), f, klogr.New())
 		Expect(err).To(BeNil())
 		Expect(clusterInfo).ToNot(BeNil())
 		Expect(clusterInfo.Status).To(Equal(libsveltosv1alpha1.SveltosStatusProvisioning))
@@ -478,11 +499,12 @@ var _ = Describe("Deployer", func() {
 		prepareForTesting(&sveltosCluster)
 
 		roleRequestReconciler := getRoleRequestReconciler(testEnv.Client, dep)
-		roleRequest := getRoleRequest(nil, nil, randomString())
+		roleRequest := getRoleRequest(nil, nil, randomString(), randomString())
 		Expect(testEnv.Create(context.Background(), roleRequest))
 		waitForObject(context.TODO(), testEnv.Client, roleRequest)
 
-		hash, err := controllers.RoleRequestHash(context.TODO(), testEnv.Client, sveltosCluster.Namespace, roleRequest, klogr.New())
+		hash, err := controllers.RoleRequestHash(context.TODO(), testEnv.Client, sveltosCluster.Namespace,
+			roleRequest, klogr.New())
 		Expect(err).To(BeNil())
 		Expect(testEnv.Get(context.TODO(), types.NamespacedName{Name: roleRequest.Name}, roleRequest)).To(Succeed())
 		roleRequest.Status = libsveltosv1alpha1.RoleRequestStatus{
@@ -490,7 +512,8 @@ var _ = Describe("Deployer", func() {
 				{
 					Cluster: corev1.ObjectReference{
 						Namespace: sveltosCluster.Namespace, Name: sveltosCluster.Name,
-						APIVersion: libsveltosv1alpha1.GroupVersion.String(), Kind: libsveltosv1alpha1.SveltosClusterKind,
+						APIVersion: libsveltosv1alpha1.GroupVersion.String(),
+						Kind:       libsveltosv1alpha1.SveltosClusterKind,
 					},
 					Status: libsveltosv1alpha1.SveltosStatusProvisioned,
 					Hash:   hash,
@@ -510,8 +533,8 @@ var _ = Describe("Deployer", func() {
 		roleRequestScope := getRoleRequestScope(testEnv.Client, klogr.New(), roleRequest)
 
 		f := controllers.GetHandlersForFeature(libsveltosv1alpha1.FeatureRoleRequest)
-		clusterInfo, err := controllers.ProcessRoleRequest(roleRequestReconciler, context.TODO(), roleRequestScope,
-			getClusterRef(&sveltosCluster), f, klogr.New())
+		clusterInfo, err := controllers.ProcessRoleRequest(roleRequestReconciler, context.TODO(),
+			roleRequestScope, getClusterRef(&sveltosCluster), f, klogr.New())
 		Expect(err).To(BeNil())
 		Expect(clusterInfo).ToNot(BeNil())
 		Expect(clusterInfo.Status).To(Equal(libsveltosv1alpha1.SveltosStatusProvisioned))
@@ -522,7 +545,7 @@ var _ = Describe("Deployer", func() {
 		Expect(dep.RegisterFeatureID(libsveltosv1alpha1.FeatureRoleRequest)).To(Succeed())
 
 		roleRequestReconciler := getRoleRequestReconciler(testEnv.Client, dep)
-		roleRequest := getRoleRequest(nil, nil, randomString())
+		roleRequest := getRoleRequest(nil, nil, randomString(), randomString())
 		roleRequestScope := getRoleRequestScope(testEnv.Client, klogr.New(), roleRequest)
 
 		sveltosCluster := libsveltosv1alpha1.SveltosCluster{
