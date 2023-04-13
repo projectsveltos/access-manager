@@ -63,11 +63,12 @@ var _ = Describe("RoleRequest", func() {
 
 	It("Deploy and updates roles", Label("FV"), func() {
 		Byf("Create a RoleRequest matching Cluster %s/%s", kindWorkloadCluster.Namespace, kindWorkloadCluster.Name)
-		admin := randomString()
-		roleRequest := getRoleRequest(namePrefix, admin, map[string]string{key: value})
+		saNamespace := randomString()
+		saName := randomString()
+		roleRequest := getRoleRequest(namePrefix, saNamespace, saName, map[string]string{key: value})
 		Expect(k8sClient.Create(context.TODO(), roleRequest)).To(Succeed())
 
-		Byf("Update RoleRequest %s to deploy roles for admin %s", roleRequest.Name, admin)
+		Byf("Update RoleRequest %s to deploy roles for serviceAccount %s/%s", roleRequest.Name, saNamespace, saName)
 		currentRolRequest := &libsveltosv1alpha1.RoleRequest{}
 		Expect(k8sClient.Get(context.TODO(), types.NamespacedName{Name: roleRequest.Name}, currentRolRequest)).To(Succeed())
 
@@ -123,21 +124,25 @@ var _ = Describe("RoleRequest", func() {
 		Expect(workloadClient.Get(context.TODO(),
 			types.NamespacedName{Namespace: namespace, Name: roleName}, currentRoleBinding)).To(Succeed())
 
+		saNameInManagedCluster := getServiceAccountNameInManagedCluster(
+			roleRequest.Spec.ServiceAccountNamespace, roleRequest.Spec.ServiceAccountName)
+
 		Expect(currentRoleBinding.RoleRef.Name).To(Equal(roleName))
 		Expect(currentRoleBinding.RoleRef.Kind).To(Equal("Role"))
 		Expect(currentRoleBinding.Subjects).ToNot(BeNil())
 		Expect(len(currentRoleBinding.Subjects)).To(Equal(1))
-		Expect(currentRoleBinding.Subjects[0].Name).To(Equal(admin))
+		Expect(currentRoleBinding.Subjects[0].Name).To(Equal(saNameInManagedCluster))
 
 		Byf("Verifying proper ServiceAccount is created in the workload cluster")
 		currentServiceAccount := &corev1.ServiceAccount{}
 		Expect(workloadClient.Get(context.TODO(),
-			types.NamespacedName{Namespace: "projectsveltos", Name: admin}, currentServiceAccount)).To(Succeed())
+			types.NamespacedName{Namespace: "projectsveltos", Name: saNameInManagedCluster},
+			currentServiceAccount)).To(Succeed())
 
-		By(fmt.Sprintf("Verifying Secret for ServiceAccount %s Cluster %s/%s is created in the management cluster",
-			admin, kindWorkloadCluster.Namespace, kindWorkloadCluster.Name))
-		saSecret, err := libsveltosroles.GetSecret(context.TODO(), k8sClient, kindWorkloadCluster.Namespace, kindWorkloadCluster.Name,
-			admin, libsveltosv1alpha1.ClusterTypeCapi)
+		By(fmt.Sprintf("Verifying Secret for ServiceAccount %s/%s Cluster %s/%s is created in the management cluster",
+			saNamespace, saName, kindWorkloadCluster.Namespace, kindWorkloadCluster.Name))
+		saSecret, err := libsveltosroles.GetSecret(context.TODO(), k8sClient, kindWorkloadCluster.Namespace,
+			kindWorkloadCluster.Name, saNamespace, saName, libsveltosv1alpha1.ClusterTypeCapi)
 		Expect(err).To(BeNil())
 		Expect(saSecret).ToNot(BeNil())
 
@@ -179,17 +184,19 @@ var _ = Describe("RoleRequest", func() {
 		Expect(currentRoleBinding.RoleRef.Kind).To(Equal("Role"))
 		Expect(currentRoleBinding.Subjects).ToNot(BeNil())
 		Expect(len(currentRoleBinding.Subjects)).To(Equal(1))
-		Expect(currentRoleBinding.Subjects[0].Name).To(Equal(admin))
+		Expect(currentRoleBinding.Subjects[0].Name).To(Equal(saNameInManagedCluster))
 
 		currentRoleRequest := &libsveltosv1alpha1.RoleRequest{}
 
 		By(fmt.Sprintf("Deleting RoleRequest %s", roleRequest.Name))
-		Expect(k8sClient.Get(context.TODO(), types.NamespacedName{Name: roleRequest.Name}, currentRoleRequest)).To(Succeed())
+		Expect(k8sClient.Get(context.TODO(), types.NamespacedName{Name: roleRequest.Name},
+			currentRoleRequest)).To(Succeed())
 		Expect(k8sClient.Delete(context.TODO(), currentRolRequest)).To(Succeed())
 
 		By(fmt.Sprintf("Verifying RoleRequest %s is not found anymore", roleRequest.Name))
 		Eventually(func() bool {
-			err = k8sClient.Get(context.TODO(), types.NamespacedName{Name: roleRequest.Name}, currentRoleRequest)
+			err = k8sClient.Get(context.TODO(), types.NamespacedName{Name: roleRequest.Name},
+				currentRoleRequest)
 			return err != nil && apierrors.IsNotFound(err)
 		}, timeout, pollingInterval).Should(BeTrue())
 
@@ -208,7 +215,8 @@ var _ = Describe("RoleRequest", func() {
 
 		Byf("Verifying ServiceAccount is removed from the workload cluster")
 		err = workloadClient.Get(context.TODO(),
-			types.NamespacedName{Namespace: "projectsveltos", Name: admin}, currentServiceAccount)
+			types.NamespacedName{Namespace: "projectsveltos", Name: saNameInManagedCluster},
+			currentServiceAccount)
 		Expect(err).ToNot(BeNil())
 		Expect(apierrors.IsNotFound(err)).To(BeTrue())
 	})

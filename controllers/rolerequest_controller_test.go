@@ -41,7 +41,7 @@ var _ = Describe("RoleRequets: Reconciler", func() {
 	var roleRequest *libsveltosv1alpha1.RoleRequest
 
 	BeforeEach(func() {
-		roleRequest = getRoleRequest(nil, nil, randomString())
+		roleRequest = getRoleRequest(nil, nil, randomString(), randomString())
 	})
 
 	It("Adds finalizer", func() {
@@ -180,7 +180,6 @@ var _ = Describe("RoleRequets: Reconciler", func() {
 			},
 		}
 
-		roleRequest := getRoleRequest(nil, nil, randomString())
 		roleRequest.Spec.ClusterSelector = libsveltosv1alpha1.Selector("env=qa,zone=west")
 
 		initObjects := []client.Object{
