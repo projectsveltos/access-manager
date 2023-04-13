@@ -58,7 +58,6 @@ var (
 	DeployReferencedResourceInManagedCluster = deployReferencedResourceInManagedCluster
 	IsClusterRoleOrRole                      = isClusterRoleOrRole
 	GetReferenceResourceNamespace            = getReferenceResourceNamespace
-	GetServiceAccountNameInManagedCluster    = getServiceAccountNameInManagedCluster
 )
 
 var (

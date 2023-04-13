@@ -477,7 +477,7 @@ func removeServiceAccount(ctx context.Context, remoteClient client.Client, roleR
 	logger logr.Logger) error {
 
 	// Generate the name of the corresponding ServiceAccount in the managed cluster
-	saName := getServiceAccountNameInManagedCluster(roleRequest.Spec.ServiceAccountNamespace, roleRequest.Spec.ServiceAccountName)
+	saName := roles.GetServiceAccountNameInManagedCluster(roleRequest.Spec.ServiceAccountNamespace, roleRequest.Spec.ServiceAccountName)
 	serviceAccount := &corev1.ServiceAccount{}
 	err := remoteClient.Get(ctx, client.ObjectKey{Namespace: serviceAccountNamespace, Name: saName},
 		serviceAccount)

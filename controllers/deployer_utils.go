@@ -40,6 +40,7 @@ import (
 	libsveltosv1alpha1 "github.com/projectsveltos/libsveltos/api/v1alpha1"
 	"github.com/projectsveltos/libsveltos/lib/deployer"
 	logs "github.com/projectsveltos/libsveltos/lib/logsettings"
+	"github.com/projectsveltos/libsveltos/lib/roles"
 	libsveltosroles "github.com/projectsveltos/libsveltos/lib/roles"
 	"github.com/projectsveltos/libsveltos/lib/utils"
 	libsveltosutils "github.com/projectsveltos/libsveltos/lib/utils"
@@ -65,7 +66,7 @@ func createServiceAccountInManagedCluster(ctx context.Context, remoteClient clie
 	}
 
 	// Generate the name of the ServiceAccount in the managed cluster.
-	saName := getServiceAccountNameInManagedCluster(
+	saName := roles.GetServiceAccountNameInManagedCluster(
 		roleRequest.Spec.ServiceAccountNamespace, roleRequest.Spec.ServiceAccountName)
 	serviceAccount := &corev1.ServiceAccount{}
 	err = remoteClient.Get(ctx, client.ObjectKey{Namespace: serviceAccountNamespace, Name: saName},
@@ -115,7 +116,7 @@ func createServiceAccountSecretForCluster(ctx context.Context, config *rest.Conf
 	logger = logger.WithValues("serviceaccount", fmt.Sprintf("%s/%s", serviceAccountNamespace, serviceAccountName))
 	logger = logger.WithValues("cluster", fmt.Sprintf("%s/%s", clusterNamespace, clusterName))
 
-	saName := getServiceAccountNameInManagedCluster(serviceAccountNamespace, serviceAccountName)
+	saName := roles.GetServiceAccountNameInManagedCluster(serviceAccountNamespace, serviceAccountName)
 
 	// In the managed cluster, get Token for the ServiceAccount
 	token, err := getServiceAccountToken(ctx, config, saName)
@@ -412,7 +413,7 @@ func deployRoleBinding(ctx context.Context, remoteClient client.Client,
 	role *unstructured.Unstructured, roleRequest *libsveltosv1alpha1.RoleRequest,
 	logger logr.Logger) (*corev1.ObjectReference, error) {
 
-	saName := getServiceAccountNameInManagedCluster(roleRequest.Spec.ServiceAccountNamespace,
+	saName := roles.GetServiceAccountNameInManagedCluster(roleRequest.Spec.ServiceAccountNamespace,
 		roleRequest.Spec.ServiceAccountName)
 
 	roleBinding := rbacv1.RoleBinding{
@@ -463,7 +464,7 @@ func deployClusterRoleBinding(ctx context.Context, remoteClient client.Client,
 	clusterRole *unstructured.Unstructured, roleRequest *libsveltosv1alpha1.RoleRequest,
 	logger logr.Logger) (*corev1.ObjectReference, error) {
 
-	saName := getServiceAccountNameInManagedCluster(roleRequest.Spec.ServiceAccountNamespace,
+	saName := roles.GetServiceAccountNameInManagedCluster(roleRequest.Spec.ServiceAccountNamespace,
 		roleRequest.Spec.ServiceAccountName)
 
 	clusterRoleBinding := rbacv1.ClusterRoleBinding{
@@ -604,18 +605,4 @@ func getReferenceResourceNamespace(clusterNamespace, referencedResourceNamespace
 	}
 
 	return clusterNamespace
-}
-
-// getServiceAccountNameInManagedCluster returns the name of the ServiceAccount in the managed
-// cluster.
-// namespace, name are the namespace and name of the ServiceAccount in the management cluster
-// for which a RoleRequest was created.
-func getServiceAccountNameInManagedCluster(namespace, name string) string {
-	// A RoleRequest contains the Namespace/Name of the ServiceAccount in the management
-	// cluster for which a RoleRequest was issued (request to grant permission in managed clusters).
-	// When processing a RoleRequest, Sveltos creates a ServiceAccount in the managed cluster.
-	// Such ServiceAccount is created in the "projectsveltos" namespace.
-	// This method returns the name of the ServiceAccount in the managed cluster (name cannot
-	// match the one in the management cluster to avoid clashes)
-	return fmt.Sprintf("%s--%s", namespace, name)
 }
