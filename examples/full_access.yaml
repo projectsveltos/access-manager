@@ -17,7 +17,7 @@ data:
       verbs: ["*"]
 
 ---
-# RoleRequest gives admin 'eng' full access
+# RoleRequest gives admin 'eng/devops' full access
 # to all clusters matching the label selector
 # dep=eng
 apiVersion: lib.projectsveltos.io/v1alpha1                                                                                 
@@ -26,7 +26,8 @@ metadata:
   name: full-access
 spec:                                                                                                                      
   clusterSelector: dep=eng                                                                                                 
-  admin: eng
+  serviceAccountName: devops
+  serviceAccountNamespace: eng
   roleRefs:
   - name: full-access                                                                                                      
     namespace: default
