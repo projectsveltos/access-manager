@@ -33,6 +33,7 @@ import (
 	"github.com/projectsveltos/access-manager/controllers"
 	libsveltosv1alpha1 "github.com/projectsveltos/libsveltos/api/v1alpha1"
 	"github.com/projectsveltos/libsveltos/lib/deployer"
+	"github.com/projectsveltos/libsveltos/lib/roles"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -49,12 +50,15 @@ var _ = Describe("Deployer utils", func() {
 
 		c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjects...).Build()
 
-		name := randomString()
-		roleRequest := getRoleRequest([]corev1.ConfigMap{}, []corev1.Secret{}, name)
+		saNamespace := randomString()
+		saName := randomString()
+		roleRequest := getRoleRequest([]corev1.ConfigMap{}, []corev1.Secret{}, saNamespace, saName)
 		Expect(controllers.CreateServiceAccountInManagedCluster(context.TODO(), c, roleRequest)).To(Succeed())
 
+		managedClusterSAName := roles.GetServiceAccountNameInManagedCluster(saNamespace, saName)
 		currentServiceAccount := &corev1.ServiceAccount{}
-		Expect(c.Get(context.TODO(), types.NamespacedName{Namespace: controllers.ServiceAccountNamespace, Name: name},
+		Expect(c.Get(context.TODO(),
+			types.NamespacedName{Namespace: controllers.ServiceAccountNamespace, Name: managedClusterSAName},
 			currentServiceAccount)).To(Succeed())
 
 		Expect(deployer.IsOwnerReference(currentServiceAccount, roleRequest)).To(BeTrue())
@@ -92,27 +96,31 @@ var _ = Describe("Deployer utils", func() {
 			Type: libsveltosv1alpha1.ClusterProfileSecretType,
 		}
 
-		roleRequest := getRoleRequest([]corev1.ConfigMap{*configMap}, []corev1.Secret{*secret}, randomString())
+		roleRequest := getRoleRequest([]corev1.ConfigMap{*configMap}, []corev1.Secret{*secret},
+			randomString(), randomString())
 
 		initObjects := []client.Object{roleRequest}
 		c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjects...).Build()
 
 		// No errors when referenced resources do not exist
-		refs, err := controllers.CollectReferencedObjects(context.TODO(), c, randomString(), roleRequest.Spec.RoleRefs, klogr.New())
+		refs, err := controllers.CollectReferencedObjects(context.TODO(), c, randomString(),
+			roleRequest.Spec.RoleRefs, klogr.New())
 		Expect(err).To(BeNil())
 		Expect(len(refs)).To(BeZero())
 
 		Expect(c.Create(context.TODO(), configMap)).To(Succeed())
 
 		// No errors when subset of referenced resources do not exist
-		refs, err = controllers.CollectReferencedObjects(context.TODO(), c, randomString(), roleRequest.Spec.RoleRefs, klogr.New())
+		refs, err = controllers.CollectReferencedObjects(context.TODO(), c, randomString(),
+			roleRequest.Spec.RoleRefs, klogr.New())
 		Expect(err).To(BeNil())
 		Expect(len(refs)).To(Equal(1))
 
 		Expect(c.Create(context.TODO(), secret)).To(Succeed())
 
 		// No errors when all referenced resources exist
-		refs, err = controllers.CollectReferencedObjects(context.TODO(), c, randomString(), roleRequest.Spec.RoleRefs, klogr.New())
+		refs, err = controllers.CollectReferencedObjects(context.TODO(), c, randomString(),
+			roleRequest.Spec.RoleRefs, klogr.New())
 		Expect(err).To(BeNil())
 		Expect(len(refs)).To(Equal(2))
 	})
@@ -135,7 +143,8 @@ var _ = Describe("Deployer utils", func() {
 			Type: libsveltosv1alpha1.ClusterProfileSecretType,
 		}
 
-		roleRequest := getRoleRequest([]corev1.ConfigMap{*configMap}, []corev1.Secret{*secret}, randomString())
+		roleRequest := getRoleRequest([]corev1.ConfigMap{*configMap}, []corev1.Secret{*secret},
+			randomString(), randomString())
 		// Reset the referenced resource namespaces
 		for i := range roleRequest.Spec.RoleRefs {
 			roleRequest.Spec.RoleRefs[i].Namespace = ""
@@ -145,21 +154,24 @@ var _ = Describe("Deployer utils", func() {
 		c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjects...).Build()
 
 		// No errors when referenced resources do not exist
-		refs, err := controllers.CollectReferencedObjects(context.TODO(), c, clusterNamespace, roleRequest.Spec.RoleRefs, klogr.New())
+		refs, err := controllers.CollectReferencedObjects(context.TODO(), c, clusterNamespace,
+			roleRequest.Spec.RoleRefs, klogr.New())
 		Expect(err).To(BeNil())
 		Expect(len(refs)).To(BeZero())
 
 		Expect(c.Create(context.TODO(), configMap)).To(Succeed())
 
 		// No errors when subset of referenced resources do not exist
-		refs, err = controllers.CollectReferencedObjects(context.TODO(), c, clusterNamespace, roleRequest.Spec.RoleRefs, klogr.New())
+		refs, err = controllers.CollectReferencedObjects(context.TODO(), c, clusterNamespace,
+			roleRequest.Spec.RoleRefs, klogr.New())
 		Expect(err).To(BeNil())
 		Expect(len(refs)).To(Equal(1))
 
 		Expect(c.Create(context.TODO(), secret)).To(Succeed())
 
 		// No errors when all referenced resources exist
-		refs, err = controllers.CollectReferencedObjects(context.TODO(), c, clusterNamespace, roleRequest.Spec.RoleRefs, klogr.New())
+		refs, err = controllers.CollectReferencedObjects(context.TODO(), c, clusterNamespace,
+			roleRequest.Spec.RoleRefs, klogr.New())
 		Expect(err).To(BeNil())
 		Expect(len(refs)).To(Equal(2))
 	})
@@ -174,14 +186,16 @@ var _ = Describe("Deployer utils", func() {
 
 		c := fake.NewClientBuilder().WithScheme(scheme).Build()
 
-		_, err := controllers.GetConfigMap(context.TODO(), c, types.NamespacedName{Namespace: configMap.Namespace, Name: configMap.Name})
+		_, err := controllers.GetConfigMap(context.TODO(), c,
+			types.NamespacedName{Namespace: configMap.Namespace, Name: configMap.Name})
 		Expect(err).ToNot(BeNil())
 		Expect(apierrors.IsNotFound(err)).To(BeTrue())
 
 		Expect(c.Create(context.TODO(), configMap))
 
 		var currentConfigMap *corev1.ConfigMap
-		currentConfigMap, err = controllers.GetConfigMap(context.TODO(), c, types.NamespacedName{Namespace: configMap.Namespace, Name: configMap.Name})
+		currentConfigMap, err = controllers.GetConfigMap(context.TODO(), c,
+			types.NamespacedName{Namespace: configMap.Namespace, Name: configMap.Name})
 		Expect(err).To(BeNil())
 		Expect(currentConfigMap).ToNot(BeNil())
 		Expect(currentConfigMap.Namespace).To(Equal(configMap.Namespace))
@@ -199,14 +213,16 @@ var _ = Describe("Deployer utils", func() {
 
 		c := fake.NewClientBuilder().WithScheme(scheme).Build()
 
-		_, err := controllers.GetSecret(context.TODO(), c, types.NamespacedName{Namespace: secret.Namespace, Name: secret.Name})
+		_, err := controllers.GetSecret(context.TODO(), c,
+			types.NamespacedName{Namespace: secret.Namespace, Name: secret.Name})
 		Expect(err).ToNot(BeNil())
 		Expect(apierrors.IsNotFound(err)).To(BeTrue())
 
 		Expect(c.Create(context.TODO(), secret))
 
 		var currentSecret *corev1.Secret
-		currentSecret, err = controllers.GetSecret(context.TODO(), c, types.NamespacedName{Namespace: secret.Namespace, Name: secret.Name})
+		currentSecret, err = controllers.GetSecret(context.TODO(), c,
+			types.NamespacedName{Namespace: secret.Namespace, Name: secret.Name})
 		Expect(err).To(BeNil())
 		Expect(currentSecret).ToNot(BeNil())
 		Expect(currentSecret.Namespace).To(Equal(secret.Namespace))
@@ -239,12 +255,15 @@ var _ = Describe("Deployer utils", func() {
 		secretName := randomString()
 
 		viewClusterRoleName := randomString()
-		configMap := createConfigMapWithPolicy(referecedResourceNamespace, configMapName, fmt.Sprintf(viewClusterRole, viewClusterRoleName))
+		configMap := createConfigMapWithPolicy(referecedResourceNamespace, configMapName,
+			fmt.Sprintf(viewClusterRole, viewClusterRoleName))
 
 		modifyClusterRoleName := randomString()
-		secret := createSecretWithPolicy(referecedResourceNamespace, secretName, fmt.Sprintf(modifyClusterRole, modifyClusterRoleName))
+		secret := createSecretWithPolicy(referecedResourceNamespace, secretName,
+			fmt.Sprintf(modifyClusterRole, modifyClusterRoleName))
 
-		roleRequest := getRoleRequest([]corev1.ConfigMap{*configMap}, []corev1.Secret{*secret}, randomString())
+		roleRequest := getRoleRequest([]corev1.ConfigMap{*configMap}, []corev1.Secret{*secret},
+			randomString(), randomString())
 
 		ns := &corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
@@ -328,7 +347,8 @@ var _ = Describe("Deployer utils", func() {
 	})
 
 	It("isClusterRoleOrRole returns true only for Role/ClusterRole", func() {
-		configMap := createConfigMapWithPolicy(randomString(), configMapName, fmt.Sprintf(viewClusterRole, randomString()))
+		configMap := createConfigMapWithPolicy(randomString(), configMapName,
+			fmt.Sprintf(viewClusterRole, randomString()))
 		Expect(addTypeInformationToObject(scheme, configMap)).To(Succeed())
 		Expect(controllers.IsClusterRoleOrRole(configMap, klogr.New())).To(BeFalse())
 
@@ -414,7 +434,10 @@ func validateClusterRoleBinding(clusterRoleBinding *rbacv1.ClusterRoleBinding,
 		return false
 	}
 
-	if clusterRoleBinding.Subjects[0].Name != roleRequest.Spec.Admin {
+	saName := roles.GetServiceAccountNameInManagedCluster(
+		roleRequest.Spec.ServiceAccountNamespace, roleRequest.Spec.ServiceAccountName)
+
+	if clusterRoleBinding.Subjects[0].Name != saName {
 		return false
 	}
 

@@ -134,8 +134,9 @@ var _ = Describe("ClustersummaryTransformations map functions", func() {
 				Name: randomString(),
 			},
 			Spec: libsveltosv1alpha1.RoleRequestSpec{
-				ClusterSelector: libsveltosv1alpha1.Selector("env=production"),
-				Admin:           randomString(),
+				ClusterSelector:         libsveltosv1alpha1.Selector("env=production"),
+				ServiceAccountName:      randomString(),
+				ServiceAccountNamespace: randomString(),
 			},
 		}
 
@@ -144,8 +145,9 @@ var _ = Describe("ClustersummaryTransformations map functions", func() {
 				Name: randomString(),
 			},
 			Spec: libsveltosv1alpha1.RoleRequestSpec{
-				ClusterSelector: libsveltosv1alpha1.Selector("env=qa"),
-				Admin:           randomString(),
+				ClusterSelector:         libsveltosv1alpha1.Selector("env=qa"),
+				ServiceAccountName:      randomString(),
+				ServiceAccountNamespace: randomString(),
 			},
 		}
 

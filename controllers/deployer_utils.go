@@ -40,6 +40,7 @@ import (
 	libsveltosv1alpha1 "github.com/projectsveltos/libsveltos/api/v1alpha1"
 	"github.com/projectsveltos/libsveltos/lib/deployer"
 	logs "github.com/projectsveltos/libsveltos/lib/logsettings"
+	"github.com/projectsveltos/libsveltos/lib/roles"
 	libsveltosroles "github.com/projectsveltos/libsveltos/lib/roles"
 	"github.com/projectsveltos/libsveltos/lib/utils"
 	libsveltosutils "github.com/projectsveltos/libsveltos/lib/utils"
@@ -64,13 +65,16 @@ func createServiceAccountInManagedCluster(ctx context.Context, remoteClient clie
 		return err
 	}
 
+	// Generate the name of the ServiceAccount in the managed cluster.
+	saName := roles.GetServiceAccountNameInManagedCluster(
+		roleRequest.Spec.ServiceAccountNamespace, roleRequest.Spec.ServiceAccountName)
 	serviceAccount := &corev1.ServiceAccount{}
-	err = remoteClient.Get(ctx, client.ObjectKey{Namespace: serviceAccountNamespace, Name: roleRequest.Spec.Admin},
+	err = remoteClient.Get(ctx, client.ObjectKey{Namespace: serviceAccountNamespace, Name: saName},
 		serviceAccount)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			serviceAccount.Namespace = serviceAccountNamespace
-			serviceAccount.Name = roleRequest.Spec.Admin
+			serviceAccount.Name = saName
 			serviceAccount.Labels = map[string]string{libsveltosv1alpha1.RoleRequestLabel: "ok"}
 			deployer.AddOwnerReference(serviceAccount, roleRequest)
 			return remoteClient.Create(ctx, serviceAccount)
@@ -106,13 +110,16 @@ func getServiceAccountToken(ctx context.Context, config *rest.Config, saName str
 }
 
 func createServiceAccountSecretForCluster(ctx context.Context, config *rest.Config, c client.Client,
-	clusterNamespace, clusterName, serviceAccountName string, clusterType libsveltosv1alpha1.ClusterType,
-	roleRequest *libsveltosv1alpha1.RoleRequest, logger logr.Logger) error {
+	clusterNamespace, clusterName, serviceAccountNamespace, serviceAccountName string,
+	clusterType libsveltosv1alpha1.ClusterType, roleRequest *libsveltosv1alpha1.RoleRequest, logger logr.Logger) error {
 
-	logger = logger.WithValues("serviceaccount", serviceAccountName)
+	logger = logger.WithValues("serviceaccount", fmt.Sprintf("%s/%s", serviceAccountNamespace, serviceAccountName))
 	logger = logger.WithValues("cluster", fmt.Sprintf("%s/%s", clusterNamespace, clusterName))
 
-	token, err := getServiceAccountToken(ctx, config, serviceAccountName)
+	saName := roles.GetServiceAccountNameInManagedCluster(serviceAccountNamespace, serviceAccountName)
+
+	// In the managed cluster, get Token for the ServiceAccount
+	token, err := getServiceAccountToken(ctx, config, saName)
 	if err != nil {
 		logger.V(logs.LogInfo).Info(fmt.Sprintf("failed to get token for serviceaccount. Err: %v", err))
 		return err
@@ -154,16 +161,19 @@ func createServiceAccountSecretForCluster(ctx context.Context, config *rest.Conf
 		return err
 	}
 
-	return createSecretWithKubeconfig(ctx, c, roleRequest, clusterNamespace, clusterName, serviceAccountName,
-		clusterType, kubeconfig, logger)
+	// Create a Secret in the management cluster with such Kubeconfig.
+	// Anytime add-ons need to be deployed because of a ClusterProfile created by a tenant admin, this Kubeconfig
+	// will be used.
+	return createSecretWithKubeconfig(ctx, c, roleRequest, clusterNamespace, clusterName, serviceAccountNamespace,
+		serviceAccountName, clusterType, kubeconfig, logger)
 }
 
 func createSecretWithKubeconfig(ctx context.Context, c client.Client, roleRequest *libsveltosv1alpha1.RoleRequest,
-	clusterNamespace, clusterName, serviceAccountName string,
+	clusterNamespace, clusterName, serviceAccountNamespace, serviceAccountName string,
 	clusterType libsveltosv1alpha1.ClusterType, kubeconfig []byte, logger logr.Logger) error {
 
-	_, err := libsveltosroles.CreateSecret(ctx, c, clusterNamespace, clusterName, serviceAccountName,
-		clusterType, kubeconfig, roleRequest)
+	_, err := libsveltosroles.CreateSecret(ctx, c, clusterNamespace, clusterName, serviceAccountNamespace,
+		serviceAccountName, clusterType, kubeconfig, roleRequest)
 	if err != nil {
 		logger.V(logs.LogInfo).Info("failed to create secret %v", err)
 		return err
@@ -403,6 +413,9 @@ func deployRoleBinding(ctx context.Context, remoteClient client.Client,
 	role *unstructured.Unstructured, roleRequest *libsveltosv1alpha1.RoleRequest,
 	logger logr.Logger) (*corev1.ObjectReference, error) {
 
+	saName := roles.GetServiceAccountNameInManagedCluster(roleRequest.Spec.ServiceAccountNamespace,
+		roleRequest.Spec.ServiceAccountName)
+
 	roleBinding := rbacv1.RoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: role.GetNamespace(),
@@ -417,7 +430,7 @@ func deployRoleBinding(ctx context.Context, remoteClient client.Client,
 		Subjects: []rbacv1.Subject{
 			{
 				Kind:      "ServiceAccount",
-				Name:      roleRequest.Spec.Admin,
+				Name:      saName,
 				Namespace: serviceAccountNamespace,
 			},
 		},
@@ -451,6 +464,9 @@ func deployClusterRoleBinding(ctx context.Context, remoteClient client.Client,
 	clusterRole *unstructured.Unstructured, roleRequest *libsveltosv1alpha1.RoleRequest,
 	logger logr.Logger) (*corev1.ObjectReference, error) {
 
+	saName := roles.GetServiceAccountNameInManagedCluster(roleRequest.Spec.ServiceAccountNamespace,
+		roleRequest.Spec.ServiceAccountName)
+
 	clusterRoleBinding := rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   clusterRole.GetName(),
@@ -464,7 +480,7 @@ func deployClusterRoleBinding(ctx context.Context, remoteClient client.Client,
 		Subjects: []rbacv1.Subject{
 			{
 				Kind:      "ServiceAccount",
-				Name:      roleRequest.Spec.Admin,
+				Name:      saName,
 				Namespace: serviceAccountNamespace,
 			},
 		},
