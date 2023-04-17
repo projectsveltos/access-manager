@@ -38,6 +38,7 @@ import (
 	libsveltosv1alpha1 "github.com/projectsveltos/libsveltos/api/v1alpha1"
 	"github.com/projectsveltos/libsveltos/lib/deployer"
 	fakedeployer "github.com/projectsveltos/libsveltos/lib/deployer/fake"
+	"github.com/projectsveltos/libsveltos/lib/roles"
 	"github.com/projectsveltos/libsveltos/lib/utils"
 )
 
@@ -159,7 +160,7 @@ var _ = Describe("Deployer", func() {
 		}, timeout, pollingInterval).Should(BeTrue())
 
 		// Name of the ServiceAccount created by Sveltos in the managed cluster
-		saName := controllers.GetServiceAccountNameInManagedCluster(
+		saName := roles.GetServiceAccountNameInManagedCluster(
 			roleRequest.Spec.ServiceAccountNamespace, roleRequest.Spec.ServiceAccountName)
 
 		// Verify ClusterRoleBinding are present
@@ -246,7 +247,7 @@ var _ = Describe("Deployer", func() {
 		}, timeout, pollingInterval).Should(BeTrue())
 
 		// Name of the ServiceAccount created by Sveltos in the managed cluster
-		saName := controllers.GetServiceAccountNameInManagedCluster(
+		saName := roles.GetServiceAccountNameInManagedCluster(
 			roleRequest.Spec.ServiceAccountNamespace, roleRequest.Spec.ServiceAccountName)
 
 		// Verify ClusterRoleBinding is present
