@@ -437,8 +437,12 @@ func deployRoleRequestInCluster(ctx context.Context, c client.Client,
 		return err
 	}
 
+	// Take Kubeconfig associated to ServiceAccount in the managed cluster, and store it in a Secret in the
+	// management cluster. This Kubeconfig will later be used when deploying add-ons for a ClusterProfile created
+	// by a tenant admin
 	err = createServiceAccountSecretForCluster(ctx, remoteRestConfig, c,
-		clusterNamespace, clusterName, roleRequest.Spec.Admin, clusterType, roleRequest, logger)
+		clusterNamespace, clusterName, roleRequest.Spec.ServiceAccountNamespace, roleRequest.Spec.ServiceAccountName,
+		clusterType, roleRequest, logger)
 	if err != nil {
 		logger.V(logs.LogInfo).Info(fmt.Sprintf("failed to create Secret with kubeconfig for ServiceAccount: %v", err))
 		return err
@@ -455,7 +459,8 @@ func deployRoleRequestInCluster(ctx context.Context, c client.Client,
 	for i := range resources {
 		referencedResource := resources[i]
 		var tmpDeployedResources []corev1.ObjectReference
-		tmpDeployedResources, err = deployReferencedResourceInManagedCluster(ctx, remoteRestConfig, remoteClient, referencedResource, roleRequest, logger)
+		tmpDeployedResources, err = deployReferencedResourceInManagedCluster(ctx, remoteRestConfig, remoteClient,
+			referencedResource, roleRequest, logger)
 		if err != nil {
 			logger.V(logs.LogInfo).Info(fmt.Sprintf("failed to deploy referenced resource %s %s/%s: %v",
 				referencedResource.GetObjectKind(), referencedResource.GetNamespace(), referencedResource.GetName(), err))
@@ -471,8 +476,10 @@ func deployRoleRequestInCluster(ctx context.Context, c client.Client,
 func removeServiceAccount(ctx context.Context, remoteClient client.Client, roleRequest *libsveltosv1alpha1.RoleRequest,
 	logger logr.Logger) error {
 
+	// Generate the name of the corresponding ServiceAccount in the managed cluster
+	saName := roles.GetServiceAccountNameInManagedCluster(roleRequest.Spec.ServiceAccountNamespace, roleRequest.Spec.ServiceAccountName)
 	serviceAccount := &corev1.ServiceAccount{}
-	err := remoteClient.Get(ctx, client.ObjectKey{Namespace: serviceAccountNamespace, Name: roleRequest.Spec.Admin},
+	err := remoteClient.Get(ctx, client.ObjectKey{Namespace: serviceAccountNamespace, Name: saName},
 		serviceAccount)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -515,11 +522,13 @@ func removeRoleRequestSecrets(ctx context.Context, c client.Client, roleRequest 
 
 	logger = logger.WithValues("roleRequest", roleRequest.Name)
 	logger = logger.WithValues("cluster", fmt.Sprintf("%s/%s", clusterNamespace, clusterName))
-	logger = logger.WithValues("admin", roleRequest.Spec.Admin)
+	logger = logger.WithValues("serviceaccount", fmt.Sprintf("%s/%s",
+		roleRequest.Spec.ServiceAccountNamespace, roleRequest.Spec.ServiceAccountName))
 
 	logger.V(logs.LogDebug).Info("Removing secret")
 
-	return roles.DeleteSecret(ctx, c, clusterNamespace, clusterName, roleRequest.Spec.Admin, clusterType, roleRequest)
+	return roles.DeleteSecret(ctx, c, clusterNamespace, clusterName, roleRequest.Spec.ServiceAccountNamespace,
+		roleRequest.Spec.ServiceAccountName, clusterType, roleRequest)
 }
 
 func cleanStaleClusterRoleResources(ctx context.Context, remoteClient client.Client, roleRequest *libsveltosv1alpha1.RoleRequest,
