@@ -355,9 +355,9 @@ var _ = Describe("Deployer", func() {
 		// Add labels as objects deployed by sveltos must have those labels.
 		// Sveltos wont clean up otherwise
 		labels := map[string]string{
-			deployer.ReferenceLabelName:      randomString(),
-			deployer.ReferenceLabelNamespace: randomString(),
-			deployer.ReferenceLabelKind:      "ConfigMap",
+			deployer.ReferenceNameLabel:      randomString(),
+			deployer.ReferenceNamespaceLabel: randomString(),
+			deployer.ReferenceKindLabel:      "ConfigMap",
 		}
 		clusterRole.SetLabels(labels)
 
