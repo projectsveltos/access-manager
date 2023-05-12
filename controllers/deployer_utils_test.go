@@ -394,15 +394,15 @@ func validateLabels(deployedResource, ownerResource client.Object) bool {
 		return false
 	}
 
-	if !validateLabel(labels, deployer.ReferenceLabelKind, ownerResource.GetObjectKind().GroupVersionKind().Kind) {
+	if !validateLabel(labels, deployer.ReferenceKindLabel, ownerResource.GetObjectKind().GroupVersionKind().Kind) {
 		return false
 	}
 
-	if !validateLabel(labels, deployer.ReferenceLabelName, ownerResource.GetName()) {
+	if !validateLabel(labels, deployer.ReferenceNameLabel, ownerResource.GetName()) {
 		return false
 	}
 
-	if !validateLabel(labels, deployer.ReferenceLabelNamespace, ownerResource.GetNamespace()) {
+	if !validateLabel(labels, deployer.ReferenceNamespaceLabel, ownerResource.GetNamespace()) {
 		return false
 	}
 

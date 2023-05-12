@@ -358,9 +358,9 @@ func deployRole(ctx context.Context, remoteConfig *rest.Config, remoteClient cli
 	// Following labels are added to indentify ConfigMap/Secret causing this resource to be deployed.
 	// Those are used to identify conflicts (different ConfigMaps/Secrets) updating same resource.
 	// Note, it is possible and OK for different RoleRequest to reference same ConfigMap/Secret.
-	addLabel(policy, deployer.ReferenceLabelKind, referencedObject.GetObjectKind().GroupVersionKind().Kind)
-	addLabel(policy, deployer.ReferenceLabelName, referencedObject.GetName())
-	addLabel(policy, deployer.ReferenceLabelNamespace, referencedObject.GetNamespace())
+	addLabel(policy, deployer.ReferenceKindLabel, referencedObject.GetObjectKind().GroupVersionKind().Kind)
+	addLabel(policy, deployer.ReferenceNameLabel, referencedObject.GetName())
+	addLabel(policy, deployer.ReferenceNamespaceLabel, referencedObject.GetNamespace())
 
 	addLabel(policy, libsveltosv1alpha1.RoleRequestLabel, "ok")
 

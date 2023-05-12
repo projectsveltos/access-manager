@@ -546,7 +546,7 @@ func cleanStaleClusterRoleResources(ctx context.Context, remoteClient client.Cli
 		logger.V(logs.LogVerbose).Info("considering clusterRole %s", cr.GetName())
 		// Verify if this policy was deployed because of a clustersummary (ReferenceLabelName
 		// is present as label in such a case).
-		if !hasLabel(cr, deployer.ReferenceLabelName, "") {
+		if !hasLabel(cr, deployer.ReferenceNameLabel, "") {
 			continue
 		}
 
@@ -599,7 +599,7 @@ func cleanStaleRoleResources(ctx context.Context, remoteClient client.Client, ro
 		logger.V(logs.LogVerbose).Info("considering role %s:%s", r.GetNamespace(), r.GetName())
 		// Verify if this policy was deployed because of a clustersummary (ReferenceLabelName
 		// is present as label in such a case).
-		if !hasLabel(r, deployer.ReferenceLabelName, "") {
+		if !hasLabel(r, deployer.ReferenceNameLabel, "") {
 			continue
 		}
 
