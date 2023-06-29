@@ -17,6 +17,7 @@ limitations under the License.
 package controllers
 
 import (
+	"context"
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
@@ -31,7 +32,7 @@ import (
 )
 
 func (r *RoleRequestReconciler) requeueRoleRequestForReference(
-	o client.Object,
+	ctx context.Context, o client.Object,
 ) []reconcile.Request {
 
 	logger := klogr.New().WithValues(
@@ -101,7 +102,7 @@ func (r *RoleRequestReconciler) requeueRoleRequestForReference(
 // requeueRoleRequestForCluster is a handler.ToRequestsFunc to be used to enqueue requests for reconciliation
 // for RoleRequest to update when its own Sveltos/CAPI Cluster gets updated.
 func (r *RoleRequestReconciler) requeueRoleRequestForCluster(
-	o client.Object,
+	ctx context.Context, o client.Object,
 ) []reconcile.Request {
 
 	cluster := o

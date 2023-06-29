@@ -270,7 +270,7 @@ func (r *RoleRequestReconciler) SetupWithManager(mgr ctrl.Manager) (controller.C
 
 	// When Sveltos Cluster changes (from paused to unpaused), one or more ClusterSummaries
 	// need to be reconciled.
-	err = c.Watch(&source.Kind{Type: &libsveltosv1alpha1.SveltosCluster{}},
+	err = c.Watch(source.Kind(mgr.GetCache(), &libsveltosv1alpha1.SveltosCluster{}),
 		handler.EnqueueRequestsFromMapFunc(r.requeueRoleRequestForCluster),
 		SveltosClusterPredicates(mgr.GetLogger().WithValues("predicate", "clusterpredicate")),
 	)
@@ -280,7 +280,7 @@ func (r *RoleRequestReconciler) SetupWithManager(mgr ctrl.Manager) (controller.C
 
 	// When ConfigMap changes, according to ConfigMapPredicates,
 	// one or more ClusterSummaries need to be reconciled.
-	err = c.Watch(&source.Kind{Type: &corev1.ConfigMap{}},
+	err = c.Watch(source.Kind(mgr.GetCache(), &corev1.ConfigMap{}),
 		handler.EnqueueRequestsFromMapFunc(r.requeueRoleRequestForReference),
 		ConfigMapPredicates(mgr.GetLogger().WithValues("predicate", "configmappredicate")),
 	)
@@ -290,7 +290,7 @@ func (r *RoleRequestReconciler) SetupWithManager(mgr ctrl.Manager) (controller.C
 
 	// When Secret changes, according to SecretPredicates,
 	// one or more ClusterSummaries need to be reconciled.
-	err = c.Watch(&source.Kind{Type: &corev1.Secret{}},
+	err = c.Watch(source.Kind(mgr.GetCache(), &corev1.Secret{}),
 		handler.EnqueueRequestsFromMapFunc(r.requeueRoleRequestForReference),
 		SecretPredicates(mgr.GetLogger().WithValues("predicate", "secretpredicate")),
 	)
@@ -301,7 +301,7 @@ func (r *RoleRequestReconciler) SetupWithManager(mgr ctrl.Manager) (controller.C
 func (r *RoleRequestReconciler) WatchForCAPI(mgr ctrl.Manager, c controller.Controller) error {
 	// When CAPI Cluster changes (from paused to unpaused), one or more ClusterSummaries
 	// need to be reconciled.
-	return c.Watch(&source.Kind{Type: &clusterv1.Cluster{}},
+	return c.Watch(source.Kind(mgr.GetCache(), &clusterv1.Cluster{}),
 		handler.EnqueueRequestsFromMapFunc(r.requeueRoleRequestForCluster),
 		ClusterPredicates(mgr.GetLogger().WithValues("predicate", "clusterpredicate")),
 	)
