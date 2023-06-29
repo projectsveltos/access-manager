@@ -52,7 +52,6 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  creationTimestamp: null
   name: access-manager-role
 rules:
 - apiGroups:
@@ -402,7 +401,7 @@ spec:
         - --v=5
         command:
         - /manager
-        image: projectsveltos/access-manager-amd64:main
+        image: projectsveltos/access-manager-amd64:dev
         livenessProbe:
           httpGet:
             path: /healthz

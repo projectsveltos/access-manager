@@ -23,7 +23,6 @@ package tools
 
 import (
 	_ "github.com/a8m/envsubst"
-	_ "github.com/golangci/golangci-lint/cmd/golangci-lint"
 	_ "github.com/onsi/ginkgo/v2/ginkgo"
 	_ "golang.org/x/oauth2/google"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/azure"
@@ -31,5 +30,4 @@ import (
 	_ "sigs.k8s.io/controller-runtime/tools/setup-envtest"
 	_ "sigs.k8s.io/controller-tools/cmd/controller-gen"
 	_ "sigs.k8s.io/kind"
-	_ "sigs.k8s.io/kustomize/kustomize/v4"
 )

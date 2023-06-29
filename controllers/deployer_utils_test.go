@@ -48,7 +48,8 @@ var _ = Describe("Deployer utils", func() {
 		}
 		initObjects := []client.Object{ns}
 
-		c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjects...).Build()
+		c := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(initObjects...).
+			WithObjects(initObjects...).Build()
 
 		saNamespace := randomString()
 		saName := randomString()
@@ -100,7 +101,8 @@ var _ = Describe("Deployer utils", func() {
 			randomString(), randomString())
 
 		initObjects := []client.Object{roleRequest}
-		c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjects...).Build()
+		c := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(initObjects...).
+			WithObjects(initObjects...).Build()
 
 		// No errors when referenced resources do not exist
 		refs, err := controllers.CollectReferencedObjects(context.TODO(), c, randomString(),
@@ -151,7 +153,8 @@ var _ = Describe("Deployer utils", func() {
 		}
 
 		initObjects := []client.Object{roleRequest}
-		c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjects...).Build()
+		c := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(initObjects...).
+			WithObjects(initObjects...).Build()
 
 		// No errors when referenced resources do not exist
 		refs, err := controllers.CollectReferencedObjects(context.TODO(), c, clusterNamespace,

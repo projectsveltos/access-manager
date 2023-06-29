@@ -48,7 +48,8 @@ var _ = Describe("AccessRequestScope", func() {
 
 		scheme := setupScheme()
 		initObjects := []client.Object{accessRequest}
-		c = fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjects...).Build()
+		c = fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(initObjects...).
+			WithObjects(initObjects...).Build()
 	})
 
 	It("Return nil,error if AccessRequest is not specified", func() {
