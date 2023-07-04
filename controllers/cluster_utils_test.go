@@ -67,7 +67,8 @@ var _ = Describe("Cluster utils", func() {
 			cluster, sveltosCluster,
 		}
 
-		c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjects...).Build()
+		c := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(initObjects...).
+			WithObjects(initObjects...).Build()
 
 		paused, err := controllers.IsClusterPaused(context.TODO(), c, cluster.Namespace,
 			cluster.Name, libsveltosv1alpha1.ClusterTypeCapi)
@@ -87,7 +88,8 @@ var _ = Describe("Cluster utils", func() {
 			cluster, sveltosCluster,
 		}
 
-		c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjects...).Build()
+		c := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(initObjects...).
+			WithObjects(initObjects...).Build()
 
 		paused, err := controllers.IsClusterPaused(context.TODO(), c, cluster.Namespace,
 			cluster.Name, libsveltosv1alpha1.ClusterTypeCapi)
@@ -129,7 +131,8 @@ var _ = Describe("Cluster utils", func() {
 			&capiSecret,
 		}
 
-		c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjects...).Build()
+		c := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(initObjects...).
+			WithObjects(initObjects...).Build()
 
 		data, err := controllers.GetSecretData(context.TODO(), c, cluster.Namespace, cluster.Name,
 			libsveltosv1alpha1.ClusterTypeCapi, klogr.New())

@@ -42,7 +42,8 @@ var _ = Describe("RoleRequestScope", func() {
 
 		scheme := setupScheme()
 		initObjects := []client.Object{roleRequest}
-		c = fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjects...).Build()
+		c = fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(initObjects...).
+			WithObjects(initObjects...).Build()
 	})
 
 	It("Return nil,error if RoleRequest is not specified", func() {

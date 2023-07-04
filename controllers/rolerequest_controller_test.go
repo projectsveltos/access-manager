@@ -49,7 +49,8 @@ var _ = Describe("RoleRequets: Reconciler", func() {
 			roleRequest,
 		}
 
-		c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjects...).Build()
+		c := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(initObjects...).
+			WithObjects(initObjects...).Build()
 
 		reconciler := getRoleRequestReconciler(c, nil)
 
@@ -89,7 +90,8 @@ var _ = Describe("RoleRequets: Reconciler", func() {
 			cluster,
 		}
 
-		c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjects...).Build()
+		c := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(initObjects...).
+			WithObjects(initObjects...).Build()
 
 		roleRequestName := client.ObjectKey{
 			Name: roleRequest.Name,
@@ -192,7 +194,8 @@ var _ = Describe("RoleRequets: Reconciler", func() {
 		Expect(addTypeInformationToObject(scheme, matchingCluster))
 		Expect(addTypeInformationToObject(scheme, sveltosCluster))
 
-		c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjects...).Build()
+		c := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(initObjects...).
+			WithObjects(initObjects...).Build()
 
 		reconciler := getRoleRequestReconciler(c, nil)
 
