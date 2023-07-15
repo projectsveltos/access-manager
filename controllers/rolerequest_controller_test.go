@@ -21,9 +21,11 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	authenticationv1 "k8s.io/api/authentication/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2/klogr"
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
@@ -210,5 +212,96 @@ var _ = Describe("RoleRequets: Reconciler", func() {
 		Expect(matches).To(ContainElement(
 			corev1.ObjectReference{Namespace: sveltosCluster.Namespace, Name: sveltosCluster.Name,
 				Kind: sveltosCluster.Kind, APIVersion: sveltosCluster.APIVersion}))
+	})
+
+	It("getClosestExpirationTime returns the interval to next TokenRequest expiration time", func() {
+		roleRequest := getRoleRequest(nil, nil, randomString(), randomString())
+		Expect(testEnv.Create(context.TODO(), roleRequest)).To(Succeed())
+		waitForObject(context.TODO(), testEnv.Client, roleRequest)
+		Expect(addTypeInformationToObject(scheme, roleRequest)).To(Succeed())
+
+		ns := &corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: roleRequest.Spec.ServiceAccountNamespace,
+			},
+		}
+		Expect(testEnv.Create(context.TODO(), ns)).To(Succeed())
+		waitForObject(context.TODO(), testEnv.Client, ns)
+
+		serviceAccount := &corev1.ServiceAccount{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: roleRequest.Spec.ServiceAccountNamespace,
+				Name:      roleRequest.Spec.ServiceAccountName,
+			},
+		}
+		Expect(testEnv.Create(context.TODO(), serviceAccount)).To(Succeed())
+		waitForObject(context.TODO(), testEnv.Client, serviceAccount)
+
+		type clusterInfo struct {
+			namespace string
+			name      string
+		}
+
+		clusters := []clusterInfo{
+			{randomString(), randomString()},
+			{randomString(), randomString()},
+			{randomString(), randomString()},
+		}
+
+		aDay := int64(24 * 60 * 60)
+		for i := range clusters {
+			// Create cluster namespace
+			ns := &corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: clusters[i].namespace,
+				},
+			}
+			Expect(testEnv.Create(context.TODO(), ns)).To(Succeed())
+			waitForObject(context.TODO(), testEnv.Client, ns)
+
+			expiration := int64(i+1) * (aDay) // multiple of a day
+			treq := &authenticationv1.TokenRequest{
+				Spec: authenticationv1.TokenRequestSpec{
+					ExpirationSeconds: &expiration,
+				},
+			}
+			clientset, err := kubernetes.NewForConfig(testEnv.Config)
+			Expect(err).To(BeNil())
+
+			// Create a TokenRequest with expiration time set in a day
+			var tokenRequest *authenticationv1.TokenRequest
+			tokenRequest, err = clientset.CoreV1().ServiceAccounts(roleRequest.Spec.ServiceAccountNamespace).
+				CreateToken(ctx, roleRequest.Spec.ServiceAccountName, treq, metav1.CreateOptions{})
+			Expect(err).To(BeNil())
+
+			// CreateSecretWithKubeconfig creates the Secret and stores there both Kubeconfig (test is
+			// passing random value for kubeconfig) and the tokenRequest expiration time.
+			// Owner of those secrets is the roleRequest.
+			Expect(controllers.CreateSecretWithKubeconfig(context.TODO(), testEnv.Client, roleRequest,
+				clusters[i].namespace, clusters[i].name, libsveltosv1alpha1.ClusterTypeSveltos,
+				[]byte(randomString()), &tokenRequest.Status, klogr.New())).To(Succeed())
+
+			// Wait for cache to sync
+			Eventually(func() error {
+				_, err := controllers.GetSecretWithKubeconfig(context.TODO(),
+					testEnv.Client, roleRequest, clusters[i].namespace,
+					clusters[i].name, libsveltosv1alpha1.ClusterTypeSveltos, klogr.New())
+				return err
+			}, timeout, pollingInterval).Should(BeNil())
+		}
+
+		// Test is pretending this roleRequest was deployed in 3 different clusters.
+		// Token expiration time is set to one day for a cluster, two days for a second cluster
+		// and three days for the third cluster
+		roleRequestScope := getRoleRequestScope(testEnv.Client, klogr.New(), roleRequest)
+		roleRequestReconciler := getRoleRequestReconciler(testEnv.Client, nil)
+		nextReconciliationTime, err := controllers.GetClosestExpirationTime(roleRequestReconciler,
+			context.TODO(), roleRequestScope, klogr.New())
+		Expect(err).To(BeNil())
+		Expect(nextReconciliationTime).ToNot(BeNil())
+		// Verify that nextReconciliationTime is less than a day and within 10 seconds from a day
+		// as few seconds have elapsed since when test generated first TokenRequest
+		Expect(nextReconciliationTime.Seconds()).To(BeNumerically("<", aDay))
+		Expect(nextReconciliationTime.Seconds()).To(BeNumerically(">", aDay-10))
 	})
 })

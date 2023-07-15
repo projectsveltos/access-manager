@@ -25,7 +25,7 @@ ARCH ?= amd64
 OS ?= $(shell uname -s | tr A-Z a-z)
 K8S_LATEST_VER ?= $(shell curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)
 export CONTROLLER_IMG ?= $(REGISTRY)/$(IMAGE_NAME)
-TAG ?= main
+TAG ?= dev
 
 # Get cluster-api version and build ldflags
 clusterapi := $(shell go list -m sigs.k8s.io/cluster-api)
@@ -172,10 +172,10 @@ endif
 
 KIND_CONFIG ?= kind-cluster.yaml
 CONTROL_CLUSTER_NAME ?= sveltos-management
-WORKLOAD_CLUSTER_NAME ?= sveltos-management-workload
+WORKLOAD_CLUSTER_NAME ?= clusterapi-workload
 NUM_NODES ?= 5
 TIMEOUT ?= 10m
-KIND_CLUSTER_YAML ?= test/sveltos-management-workload.yaml
+KIND_CLUSTER_YAML ?= test/clusterapi-workload.yaml
 
 .PHONY: test
 test: manifests generate fmt vet $(SETUP_ENVTEST) ## Run uts.
@@ -202,7 +202,7 @@ create-cluster: $(KIND) $(CLUSTERCTL) $(KUBECTL) $(ENVSUBST) ## Create a new kin
 	$(MAKE) deploy-projectsveltos
 
 	@echo "wait for cluster to be provisioned"
-	$(KUBECTL) wait cluster sveltos-management-workload -n default --for=jsonpath='{.status.phase}'=Provisioned --timeout=$(TIMEOUT)
+	$(KUBECTL) wait cluster $(WORKLOAD_CLUSTER_NAME) -n default --for=jsonpath='{.status.phase}'=Provisioned --timeout=$(TIMEOUT)
 
 	@echo "sleep allowing control plane to be ready"
 	sleep 60

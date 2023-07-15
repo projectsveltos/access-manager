@@ -171,19 +171,19 @@ func (r *RoleRequestReconciler) processRoleRequest(ctx context.Context, roleRequ
 	cluster *corev1.ObjectReference, f feature, logger logr.Logger,
 ) (*libsveltosv1alpha1.ClusterInfo, error) {
 
-	// Get RoleRequest Spec hash (at this very precise moment)
-	currentHash, err := roleRequestHash(ctx, r.Client, cluster.Namespace, roleRequestScope.RoleRequest, logger)
-	if err != nil {
-		return nil, err
-	}
 	roleRequest := roleRequestScope.RoleRequest
-
-	var proceed bool
-	proceed, err = r.canProceed(ctx, roleRequest, cluster, logger)
+	proceed, err := r.canProceed(ctx, roleRequest, cluster, logger)
 	if err != nil {
 		return nil, err
 	} else if !proceed {
 		return nil, nil
+	}
+
+	// Get RoleRequest Spec hash (at this very precise moment)
+	var currentHash []byte
+	currentHash, err = roleRequestHash(ctx, r.Client, cluster.Namespace, roleRequestScope.RoleRequest, logger)
+	if err != nil {
+		return nil, err
 	}
 
 	// If undeploying feature is in progress, wait for it to complete.
@@ -202,11 +202,20 @@ func (r *RoleRequestReconciler) processRoleRequest(ctx context.Context, roleRequ
 			currentHash, hash))
 	}
 
+	// Check if TokenRequest is expired. Recreate if so.
+	var timeExpired bool
+	timeExpired, err = isTimeExpired(ctx, r.Client, roleRequest, cluster.Namespace, cluster.Name, getClusterType(cluster), logger)
+	if err != nil {
+		return nil, err
+	}
+
 	var status *libsveltosv1alpha1.SveltosFeatureStatus
 	var result deployer.Result
 
-	if isConfigSame {
-		logger.V(logs.LogInfo).Info("roleRequest has not changed")
+	needToRedeploy := !isConfigSame || timeExpired
+
+	if !needToRedeploy {
+		logger.V(logs.LogInfo).Info("roleRequest has not changed and timer has not expired ")
 		result = r.Deployer.GetResult(ctx, cluster.Namespace, cluster.Name, roleRequest.Name, f.id,
 			getClusterType(cluster), false)
 		status = r.convertResultStatus(result)
@@ -231,12 +240,12 @@ func (r *RoleRequestReconciler) processRoleRequest(ctx context.Context, roleRequ
 		if *status == libsveltosv1alpha1.SveltosStatusProvisioning {
 			return clusterInfo, fmt.Errorf("roleRequest is still being provisioned")
 		}
-	} else if isConfigSame && currentStatus != nil && *currentStatus == libsveltosv1alpha1.SveltosStatusProvisioned {
+	} else if !needToRedeploy && currentStatus != nil && *currentStatus == libsveltosv1alpha1.SveltosStatusProvisioned {
 		logger.V(logs.LogInfo).Info("already deployed")
 		s := libsveltosv1alpha1.SveltosStatusProvisioned
 		status = &s
 	} else {
-		logger.V(logs.LogInfo).Info("no result is available. queue job and mark status as provisioning")
+		logger.V(logs.LogInfo).Info("no result is available/redeploy is needed. queue job and mark status as provisioning")
 		s := libsveltosv1alpha1.SveltosStatusProvisioning
 		status = &s
 

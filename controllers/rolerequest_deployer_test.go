@@ -21,6 +21,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"reflect"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -487,7 +488,7 @@ var _ = Describe("Deployer", func() {
 		Expect(clusterInfo.Status).To(Equal(libsveltosv1alpha1.SveltosStatusProvisioning))
 	})
 
-	It("processRoleRequest detects RoleRequest does not need to be deployed in cluster", func() {
+	It("processRoleRequest detects RoleRequest does need to be deployed in cluster as timer is expired", func() {
 		dep := fakedeployer.GetClient(context.TODO(), klogr.New(), testEnv.Client)
 		Expect(dep.RegisterFeatureID(libsveltosv1alpha1.FeatureRoleRequest)).To(Succeed())
 
@@ -501,6 +502,8 @@ var _ = Describe("Deployer", func() {
 
 		roleRequestReconciler := getRoleRequestReconciler(testEnv.Client, dep)
 		roleRequest := getRoleRequest(nil, nil, randomString(), randomString())
+		hour := int64(time.Hour.Seconds())
+		roleRequest.Spec.ExpirationSeconds = &hour
 		Expect(testEnv.Create(context.Background(), roleRequest))
 		waitForObject(context.TODO(), testEnv.Client, roleRequest)
 
@@ -533,12 +536,14 @@ var _ = Describe("Deployer", func() {
 
 		roleRequestScope := getRoleRequestScope(testEnv.Client, klogr.New(), roleRequest)
 
+		// There is no secret containing current expiration time, so Sveltos will detect this
+		// as needing to be deployed
 		f := controllers.GetHandlersForFeature(libsveltosv1alpha1.FeatureRoleRequest)
 		clusterInfo, err := controllers.ProcessRoleRequest(roleRequestReconciler, context.TODO(),
 			roleRequestScope, getClusterRef(&sveltosCluster), f, klogr.New())
 		Expect(err).To(BeNil())
 		Expect(clusterInfo).ToNot(BeNil())
-		Expect(clusterInfo.Status).To(Equal(libsveltosv1alpha1.SveltosStatusProvisioned))
+		Expect(clusterInfo.Status).To(Equal(libsveltosv1alpha1.SveltosStatusProvisioning))
 	})
 
 	It("removeRoleRequest queue job to remove RoleRequest from Cluster", func() {
