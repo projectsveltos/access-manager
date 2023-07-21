@@ -64,6 +64,10 @@ var (
 	GetSecretWithKubeconfig                  = getSecretWithKubeconfig
 )
 
+const (
+	ExpirationKey = expirationKey
+)
+
 var (
 	DeployRoleRequestInCluster     = deployRoleRequestInCluster
 	UndeployRoleRequestFromCluster = undeployRoleRequestFromCluster
