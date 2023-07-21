@@ -445,11 +445,17 @@ var _ = Describe("Deployer utils", func() {
 			[]byte(randomString()), &tokenRequest.Status, klogr.New())).To(Succeed())
 
 		// Wait for cache to sync
-		Eventually(func() error {
-			_, err := controllers.GetSecretWithKubeconfig(context.TODO(),
+		Eventually(func() bool {
+			secret, err := controllers.GetSecretWithKubeconfig(context.TODO(),
 				testEnv.Client, roleRequest, clusterNamespace, clusterName, libsveltosv1alpha1.ClusterTypeSveltos, klogr.New())
-			return err
-		}, timeout, pollingInterval).Should(BeNil())
+			if err != nil || secret.Data == nil {
+				return false
+			}
+			// Since Secret is first created and then updated with expirationKey
+			// verify expirationKey is set. Then validate value out of this eventual loop
+			_, ok := secret.Data[controllers.ExpirationKey]
+			return ok
+		}, timeout, pollingInterval).Should(BeTrue())
 
 		// Since expiration time was set in a day, expect result to be false
 		Expect(controllers.IsTimeExpired(context.TODO(), testEnv.Client, roleRequest,
