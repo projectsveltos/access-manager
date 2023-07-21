@@ -592,7 +592,7 @@ func (r *RoleRequestReconciler) getClosestExpirationTime(ctx context.Context,
 	roleRequestScope *scope.RoleRequestScope, logger logr.Logger) (*time.Duration, error) {
 
 	// Get all secrets associated to this roleRequest
-	secrets, err := libsveltosroles.ListSecretForOwnner(ctx, r.Client, roleRequestScope.RoleRequest)
+	secrets, err := libsveltosroles.ListSecretForOwner(ctx, r.Client, roleRequestScope.RoleRequest)
 	if err != nil {
 		return nil, err
 	}
