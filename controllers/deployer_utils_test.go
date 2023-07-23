@@ -23,11 +23,13 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	authenticationv1 "k8s.io/api/authentication/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2/klogr"
 
 	"github.com/projectsveltos/access-manager/controllers"
@@ -389,6 +391,76 @@ var _ = Describe("Deployer utils", func() {
 			Equal(referecedResource.Namespace))
 	})
 
+	// Minimum expiration time for a tokenRequest is 10 minutes. That prevents testing that
+	// isTimeExpired returns true when timer has expired. So only testing scenario where timer
+	// has not expired
+	It("isTimeExpired returns false when token's expiration time has not passed", func() {
+		expiration := int64(24 * 60 * 60) // one day
+
+		treq := &authenticationv1.TokenRequest{
+			Spec: authenticationv1.TokenRequestSpec{
+				ExpirationSeconds: &expiration,
+			},
+		}
+
+		clientset, err := kubernetes.NewForConfig(testEnv.Config)
+		Expect(err).To(BeNil())
+
+		serviceAccount := corev1.ServiceAccount{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "default",
+				Name:      randomString(),
+			},
+		}
+		Expect(testEnv.Create(context.TODO(), &serviceAccount)).To(Succeed())
+		waitForObject(context.TODO(), testEnv.Client, &serviceAccount)
+
+		// Create a TokenRequest with expiration time set in a day
+		var tokenRequest *authenticationv1.TokenRequest
+		tokenRequest, err = clientset.CoreV1().ServiceAccounts(serviceAccount.Namespace).
+			CreateToken(ctx, serviceAccount.Name, treq, metav1.CreateOptions{})
+		Expect(err).To(BeNil())
+
+		clusterNamespace := randomString()
+		clusterName := randomString()
+
+		ns := &corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: clusterNamespace,
+			},
+		}
+
+		Expect(testEnv.Create(context.TODO(), ns)).To(Succeed())
+		waitForObject(context.TODO(), testEnv.Client, ns)
+
+		roleRequest := getRoleRequest(nil, nil, serviceAccount.Namespace, serviceAccount.Name)
+		Expect(testEnv.Create(context.TODO(), roleRequest)).To(Succeed())
+		waitForObject(context.TODO(), testEnv.Client, roleRequest)
+
+		// CreateSecretWithKubeconfig creates the Secret and stores there both Kubeconfig (test is
+		// passing random value for kubeconfig) and the tokenRequest expiration time.
+		// Creating the secret is essential as IsTimeExpired expects Secret to be present.
+		Expect(controllers.CreateSecretWithKubeconfig(context.TODO(), testEnv.Client, roleRequest,
+			clusterNamespace, clusterName, libsveltosv1alpha1.ClusterTypeSveltos,
+			[]byte(randomString()), &tokenRequest.Status, klogr.New())).To(Succeed())
+
+		// Wait for cache to sync
+		Eventually(func() bool {
+			secret, err := controllers.GetSecretWithKubeconfig(context.TODO(),
+				testEnv.Client, roleRequest, clusterNamespace, clusterName, libsveltosv1alpha1.ClusterTypeSveltos, klogr.New())
+			if err != nil || secret.Data == nil {
+				return false
+			}
+			// Since Secret is first created and then updated with expirationKey
+			// verify expirationKey is set. Then validate value out of this eventual loop
+			_, ok := secret.Data[controllers.ExpirationKey]
+			return ok
+		}, timeout, pollingInterval).Should(BeTrue())
+
+		// Since expiration time was set in a day, expect result to be false
+		Expect(controllers.IsTimeExpired(context.TODO(), testEnv.Client, roleRequest,
+			clusterNamespace, clusterName, libsveltosv1alpha1.ClusterTypeSveltos, klogr.New())).To(BeFalse())
+	})
 })
 
 func validateLabels(deployedResource, ownerResource client.Object) bool {

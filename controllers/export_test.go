@@ -36,6 +36,7 @@ var (
 	ProcessRoleRequest             = (*RoleRequestReconciler).processRoleRequest
 	RemoveRoleRequest              = (*RoleRequestReconciler).removeRoleRequest
 	GetMatchingClusters            = (*RoleRequestReconciler).getMatchingClusters
+	GetClosestExpirationTime       = (*RoleRequestReconciler).getClosestExpirationTime
 )
 
 const (
@@ -58,6 +59,13 @@ var (
 	DeployReferencedResourceInManagedCluster = deployReferencedResourceInManagedCluster
 	IsClusterRoleOrRole                      = isClusterRoleOrRole
 	GetReferenceResourceNamespace            = getReferenceResourceNamespace
+	IsTimeExpired                            = isTimeExpired
+	CreateSecretWithKubeconfig               = createSecretWithKubeconfig
+	GetSecretWithKubeconfig                  = getSecretWithKubeconfig
+)
+
+const (
+	ExpirationKey = expirationKey
 )
 
 var (

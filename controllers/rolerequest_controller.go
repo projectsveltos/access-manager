@@ -26,6 +26,7 @@ import (
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
@@ -41,6 +42,7 @@ import (
 	libsveltosv1alpha1 "github.com/projectsveltos/libsveltos/api/v1alpha1"
 	"github.com/projectsveltos/libsveltos/lib/deployer"
 	logs "github.com/projectsveltos/libsveltos/lib/logsettings"
+	libsveltosroles "github.com/projectsveltos/libsveltos/lib/roles"
 	libsveltosset "github.com/projectsveltos/libsveltos/lib/set"
 )
 
@@ -170,7 +172,7 @@ func (r *RoleRequestReconciler) reconcileDelete(
 	logger logr.Logger,
 ) (reconcile.Result, error) {
 
-	logger.V(logs.LogInfo).Info("Reconciling ClusterSummary delete")
+	logger.V(logs.LogInfo).Info("Reconciling RoleRequest delete")
 
 	// Undeploy roleRequest from all clusters where it was deployed
 	f := getHandlersForFeature(libsveltosv1alpha1.FeatureRoleRequest)
@@ -223,7 +225,7 @@ func (r *RoleRequestReconciler) reconcileNormal(
 	logger logr.Logger,
 ) (reconcile.Result, error) {
 
-	logger.V(logs.LogInfo).Info("Reconciling ClusterSummary")
+	logger.V(logs.LogInfo).Info("Reconciling RoleRequest")
 
 	if !controllerutil.ContainsFinalizer(roleRequestScope.RoleRequest, libsveltosv1alpha1.RoleRequestFinalizer) {
 		if err := r.addFinalizer(ctx, roleRequestScope); err != nil {
@@ -244,12 +246,28 @@ func (r *RoleRequestReconciler) reconcileNormal(
 	r.updateMaps(roleRequestScope)
 
 	f := getHandlersForFeature(libsveltosv1alpha1.FeatureRoleRequest)
-	if err := r.deployRoleRequest(ctx, roleRequestScope, f, logger); err != nil {
+	if err = r.deployRoleRequest(ctx, roleRequestScope, f, logger); err != nil {
 		logger.V(logs.LogInfo).Error(err, "failed to deploy")
 		return reconcile.Result{Requeue: true, RequeueAfter: normalRequeueAfter}, nil
 	}
 
-	logger.V(logs.LogInfo).Info("Reconciling RoleRequest success")
+	// Find when next TokenRequest will expire (if any) and requeue this roleRequest
+	// for reconciliation then. If no other change happens till then, TokenRequest must
+	// be recreated before token expires.
+	var nextExpirationTime *time.Duration
+	nextExpirationTime, err = r.getClosestExpirationTime(ctx, roleRequestScope, logger)
+	if err != nil {
+		logger.V(logs.LogInfo).Error(err, "failed to get next expiration time")
+		return reconcile.Result{Requeue: true, RequeueAfter: normalRequeueAfter}, nil
+	}
+	if nextExpirationTime != nil {
+		logger.V(logs.LogInfo).Info(fmt.Sprintf(
+			"Reconciling RoleRequest success (requing in %f seconds before token expires)",
+			nextExpirationTime.Seconds()))
+		return reconcile.Result{Requeue: true, RequeueAfter: *nextExpirationTime}, nil
+	}
+
+	logger.V(logs.LogInfo).Info("Reconciling RoleRequest success (no token expiring)")
 	return reconcile.Result{}, nil
 }
 
@@ -565,4 +583,41 @@ func (r *RoleRequestReconciler) updateClusterInfo(roleRequestScope *scope.RoleRe
 	finalClusterInfo := roleRequest.Status.ClusterInfo
 	finalClusterInfo = append(finalClusterInfo, newClusterInfo...)
 	roleRequestScope.SetClusterInfo(finalClusterInfo)
+}
+
+// getClosestExpirationTime finds all Secrets associated with roleRequest.
+// Each Secret contains a Kubeconfig and TokenRequest expiration.
+// This method returns the time, from now, when the next TokenRequest will expire.
+func (r *RoleRequestReconciler) getClosestExpirationTime(ctx context.Context,
+	roleRequestScope *scope.RoleRequestScope, logger logr.Logger) (*time.Duration, error) {
+
+	// Get all secrets associated to this roleRequest
+	secrets, err := libsveltosroles.ListSecretForOwner(ctx, r.Client, roleRequestScope.RoleRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	var nextExpirationTime *metav1.Time
+
+	for i := range secrets {
+		var expirationTime *metav1.Time
+		expirationTime, err = getCurrentExpirationTimeFromSecret(&secrets[i], logger)
+		if err != nil {
+			return nil, err
+		}
+		if expirationTime != nil {
+			if nextExpirationTime == nil {
+				nextExpirationTime = expirationTime
+			} else if nextExpirationTime.After(expirationTime.Time) {
+				nextExpirationTime = expirationTime
+			}
+		}
+	}
+
+	if nextExpirationTime != nil {
+		timeUntil := time.Until(nextExpirationTime.Time)
+		return &timeUntil, nil
+	}
+
+	return nil, nil
 }

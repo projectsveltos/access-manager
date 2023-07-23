@@ -110,6 +110,8 @@ var _ = BeforeSuite(func() {
 	Expect(testEnv.Create(ctx, sveltosClusterCRD)).To(Succeed())
 	waitForObject(context.TODO(), testEnv.Client, sveltosClusterCRD)
 
+	time.Sleep(time.Second)
+
 	if synced := testEnv.GetCache().WaitForCacheSync(ctx); !synced {
 		time.Sleep(time.Second)
 	}

@@ -53,6 +53,7 @@ const (
 	clusterRoleKind         = "ClusterRole"
 	// expirationInSecond is the token expiration time.
 	saExpirationInSecond = 365 * 24 * 60 * time.Minute
+	expirationKey        = "expirationTime"
 )
 
 // createServiceAccountInManagedCluster create a ServiceAccount with passed in name in the
@@ -86,9 +87,9 @@ func createServiceAccountInManagedCluster(ctx context.Context, remoteClient clie
 }
 
 // getServiceAccountToken returns token for a serviceaccount
-func getServiceAccountToken(ctx context.Context, config *rest.Config, saName string) ([]byte, error) {
-	// Get token for serviceAccount
-	expiration := int64(saExpirationInSecond.Seconds())
+func getServiceAccountToken(ctx context.Context, config *rest.Config, saName string,
+	expiration int64) (*authenticationv1.TokenRequestStatus, error) {
+
 	treq := &authenticationv1.TokenRequest{
 		Spec: authenticationv1.TokenRequestSpec{
 			ExpirationSeconds: &expiration,
@@ -106,7 +107,7 @@ func getServiceAccountToken(ctx context.Context, config *rest.Config, saName str
 		return nil, err
 	}
 
-	return []byte(tokenRequest.Status.Token), nil
+	return &tokenRequest.Status, nil
 }
 
 func createServiceAccountSecretForCluster(ctx context.Context, config *rest.Config, c client.Client,
@@ -118,8 +119,12 @@ func createServiceAccountSecretForCluster(ctx context.Context, config *rest.Conf
 
 	saName := roles.GetServiceAccountNameInManagedCluster(serviceAccountNamespace, serviceAccountName)
 
+	expiration := int64(saExpirationInSecond.Seconds())
+	if roleRequest.Spec.ExpirationSeconds != nil {
+		expiration = *roleRequest.Spec.ExpirationSeconds
+	}
 	// In the managed cluster, get Token for the ServiceAccount
-	token, err := getServiceAccountToken(ctx, config, saName)
+	tokenStatus, err := getServiceAccountToken(ctx, config, saName, expiration)
 	if err != nil {
 		logger.V(logs.LogInfo).Info(fmt.Sprintf("failed to get token for serviceaccount. Err: %v", err))
 		return err
@@ -155,7 +160,8 @@ func createServiceAccountSecretForCluster(ctx context.Context, config *rest.Conf
 	server := configObject.Clusters[0].Cluster.Server
 
 	var kubeconfig []byte
-	kubeconfig, err = libsveltosutils.GetKubeconfigWithUserToken(ctx, token, caCrt, serviceAccountName, server)
+	kubeconfig, err = libsveltosutils.GetKubeconfigWithUserToken(ctx, []byte(tokenStatus.Token),
+		caCrt, serviceAccountName, server)
 	if err != nil {
 		logger.V(logs.LogInfo).Info(fmt.Sprintf("failed to get kubeconfig: %v", err))
 		return err
@@ -164,22 +170,109 @@ func createServiceAccountSecretForCluster(ctx context.Context, config *rest.Conf
 	// Create a Secret in the management cluster with such Kubeconfig.
 	// Anytime add-ons need to be deployed because of a ClusterProfile created by a tenant admin, this Kubeconfig
 	// will be used.
-	return createSecretWithKubeconfig(ctx, c, roleRequest, clusterNamespace, clusterName, serviceAccountNamespace,
-		serviceAccountName, clusterType, kubeconfig, logger)
+	return createSecretWithKubeconfig(ctx, c, roleRequest, clusterNamespace, clusterName,
+		clusterType, kubeconfig, tokenStatus, logger)
 }
 
 func createSecretWithKubeconfig(ctx context.Context, c client.Client, roleRequest *libsveltosv1alpha1.RoleRequest,
-	clusterNamespace, clusterName, serviceAccountNamespace, serviceAccountName string,
-	clusterType libsveltosv1alpha1.ClusterType, kubeconfig []byte, logger logr.Logger) error {
+	clusterNamespace, clusterName string,
+	clusterType libsveltosv1alpha1.ClusterType, kubeconfig []byte,
+	tokenStatus *authenticationv1.TokenRequestStatus, logger logr.Logger) error {
 
-	_, err := libsveltosroles.CreateSecret(ctx, c, clusterNamespace, clusterName, serviceAccountNamespace,
-		serviceAccountName, clusterType, kubeconfig, roleRequest)
+	secret, err := libsveltosroles.CreateSecret(ctx, c, clusterNamespace, clusterName,
+		roleRequest.Spec.ServiceAccountNamespace, roleRequest.Spec.ServiceAccountName, clusterType,
+		kubeconfig, roleRequest)
 	if err != nil {
-		logger.V(logs.LogInfo).Info("failed to create secret %v", err)
+		logger.V(logs.LogInfo).Info(fmt.Sprintf("failed to create secret %v", err))
 		return err
 	}
 
-	return nil
+	// Convert the metav1.Time object to a []byte.
+	bytes, err := tokenStatus.ExpirationTimestamp.MarshalJSON()
+	if err != nil {
+		logger.V(logs.LogInfo).Info(fmt.Sprintf("failed to convert expiration time to JSON %v", err))
+		return err
+	}
+
+	secret.Data[expirationKey] = bytes
+	return c.Update(context.TODO(), secret)
+}
+
+func getSecretWithKubeconfig(ctx context.Context, c client.Client, roleRequest *libsveltosv1alpha1.RoleRequest,
+	clusterNamespace, clusterName string, clusterType libsveltosv1alpha1.ClusterType,
+	logger logr.Logger) (*corev1.Secret, error) {
+
+	secret, err := libsveltosroles.GetSecret(ctx, c, clusterNamespace, clusterName,
+		roleRequest.Spec.ServiceAccountNamespace, roleRequest.Spec.ServiceAccountName, clusterType)
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			logger.V(logs.LogInfo).Info("failed to get secret %v", err)
+			return nil, err
+		}
+	}
+
+	return secret, nil
+}
+
+func getCurrentExpirationTimeFromSecret(secret *corev1.Secret, logger logr.Logger) (*metav1.Time, error) {
+	if secret == nil {
+		return nil, nil
+	}
+
+	if secret.Data == nil {
+		return nil, nil
+	}
+
+	expirationTime, ok := secret.Data[expirationKey]
+	if !ok {
+		return nil, nil
+	}
+
+	t := metav1.Time{}
+	err := t.UnmarshalJSON(expirationTime)
+	if err != nil {
+		logger.V(logs.LogInfo).Info(fmt.Sprintf("failed to get expiration time from stored value: %v", err))
+		return nil, nil
+	}
+
+	return &t, nil
+}
+
+func getCurrentExpirationTime(ctx context.Context, c client.Client, roleRequest *libsveltosv1alpha1.RoleRequest,
+	clusterNamespace, clusterName string, clusterType libsveltosv1alpha1.ClusterType,
+	logger logr.Logger) (*metav1.Time, error) {
+
+	secret, err := libsveltosroles.GetSecret(ctx, c, clusterNamespace, clusterName,
+		roleRequest.Spec.ServiceAccountNamespace, roleRequest.Spec.ServiceAccountName, clusterType)
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			logger.V(logs.LogInfo).Info("failed to get secret %v", err)
+			return nil, err
+		}
+	}
+
+	return getCurrentExpirationTimeFromSecret(secret, logger)
+}
+
+func isTimeExpired(ctx context.Context, c client.Client, roleRequest *libsveltosv1alpha1.RoleRequest,
+	clusterNamespace, clusterName string, clusterType libsveltosv1alpha1.ClusterType,
+	logger logr.Logger) (bool, error) {
+
+	expirationTime, err := getCurrentExpirationTime(ctx, c, roleRequest, clusterNamespace, clusterName,
+		clusterType, logger)
+	if err != nil {
+		logger.V(logs.LogInfo).Info(fmt.Sprintf("failed to get epiration time: %v", err))
+		return false, err
+	}
+
+	if expirationTime == nil {
+		logger.V(logs.LogInfo).Info("expiration time not present")
+		return true, nil
+	}
+
+	// Get the current time.
+	now := time.Now()
+	return now.After(expirationTime.Time), nil
 }
 
 // createNamespaceInManagedCluster creates a namespace if it does not exist already
