@@ -27,6 +27,8 @@ import (
 	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -36,6 +38,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/pointer"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -59,8 +62,10 @@ var (
 )
 
 const (
-	timeout         = 40 * time.Second
-	pollingInterval = 2 * time.Second
+	timeout               = 40 * time.Second
+	pollingInterval       = 2 * time.Second
+	clusterAPIGroup       = "cluster.x-k8s.io"
+	clusterAPITestVersion = "v1beta1"
 )
 
 func TestControllers(t *testing.T) {
@@ -340,4 +345,49 @@ func prepareForTesting(cluster *libsveltosv1alpha1.SveltosCluster) {
 
 	Expect(testEnv.Client.Create(context.TODO(), secret)).To(Succeed())
 	waitForObject(context.TODO(), testEnv.Client, secret)
+}
+
+func generateTestClusterAPICRD(kind, pluralKind string) *apiextensionsv1.CustomResourceDefinition {
+	return &apiextensionsv1.CustomResourceDefinition{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: apiextensionsv1.SchemeGroupVersion.String(),
+			Kind:       "CustomResourceDefinition",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: pluralKind + "." + clusterAPIGroup,
+		},
+		Spec: apiextensionsv1.CustomResourceDefinitionSpec{
+			Group: clusterAPIGroup,
+			Scope: apiextensionsv1.NamespaceScoped,
+			Names: apiextensionsv1.CustomResourceDefinitionNames{
+				Kind:   cases.Title(language.English).String(kind),
+				Plural: pluralKind,
+			},
+			Versions: []apiextensionsv1.CustomResourceDefinitionVersion{
+				{
+					Name:    clusterAPITestVersion,
+					Served:  true,
+					Storage: true,
+					Subresources: &apiextensionsv1.CustomResourceSubresources{
+						Status: &apiextensionsv1.CustomResourceSubresourceStatus{},
+					},
+					Schema: &apiextensionsv1.CustomResourceValidation{
+						OpenAPIV3Schema: &apiextensionsv1.JSONSchemaProps{
+							Type: "object",
+							Properties: map[string]apiextensionsv1.JSONSchemaProps{
+								"spec": {
+									Type:                   "object",
+									XPreserveUnknownFields: pointer.Bool(true),
+								},
+								"status": {
+									Type:                   "object",
+									XPreserveUnknownFields: pointer.Bool(true),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
 }

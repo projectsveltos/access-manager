@@ -40,6 +40,7 @@ import (
 
 	"github.com/projectsveltos/access-manager/pkg/scope"
 	libsveltosv1alpha1 "github.com/projectsveltos/libsveltos/api/v1alpha1"
+	"github.com/projectsveltos/libsveltos/lib/clusterproxy"
 	"github.com/projectsveltos/libsveltos/lib/deployer"
 	logs "github.com/projectsveltos/libsveltos/lib/logsettings"
 	libsveltosroles "github.com/projectsveltos/libsveltos/lib/roles"
@@ -234,7 +235,7 @@ func (r *RoleRequestReconciler) reconcileNormal(
 		}
 	}
 
-	matchingCluster, err := r.getMatchingClusters(ctx, roleRequestScope)
+	matchingCluster, err := r.getMatchingClusters(ctx, roleRequestScope, logger)
 	if err != nil {
 		return reconcile.Result{}, err
 	}
@@ -463,93 +464,19 @@ func (r *RoleRequestReconciler) getCurrentReferences(roleRequestScope *scope.Rol
 
 // getMatchingClusters returns all Sveltos/CAPI Clusters currently matching RoleRequest.Spec.ClusterSelector
 func (r *RoleRequestReconciler) getMatchingClusters(ctx context.Context, roleRequestScope *scope.RoleRequestScope,
-) ([]corev1.ObjectReference, error) {
+	logger logr.Logger) ([]corev1.ObjectReference, error) {
 
-	matching := make([]corev1.ObjectReference, 0)
-
-	parsedSelector, _ := labels.Parse(roleRequestScope.GetSelector())
-
-	tmpMatching, err := r.getMatchingCAPIClusters(ctx, roleRequestScope, parsedSelector)
-	if err != nil {
-		return nil, err
-	}
-
-	matching = append(matching, tmpMatching...)
-
-	tmpMatching, err = r.getMatchingSveltosClusters(ctx, roleRequestScope, parsedSelector)
-	if err != nil {
-		return nil, err
-	}
-
-	matching = append(matching, tmpMatching...)
-
-	return matching, nil
-}
-
-func (r *RoleRequestReconciler) getMatchingCAPIClusters(ctx context.Context, roleRequestScope *scope.RoleRequestScope,
-	parsedSelector labels.Selector) ([]corev1.ObjectReference, error) {
-
-	clusterList := &clusterv1.ClusterList{}
-	if err := r.List(ctx, clusterList); err != nil {
-		roleRequestScope.Logger.Error(err, "failed to list all Cluster")
-		return nil, err
-	}
-
-	matching := make([]corev1.ObjectReference, 0)
-
-	for i := range clusterList.Items {
-		cluster := &clusterList.Items[i]
-
-		if !cluster.DeletionTimestamp.IsZero() {
-			// Only existing cluster can match
-			continue
-		}
-
-		addTypeInformationToObject(r.Scheme, cluster)
-		if parsedSelector.Matches(labels.Set(cluster.Labels)) {
-			matching = append(matching, corev1.ObjectReference{
-				Kind:       cluster.Kind,
-				Namespace:  cluster.Namespace,
-				Name:       cluster.Name,
-				APIVersion: cluster.APIVersion,
-			})
+	var matchingCluster []corev1.ObjectReference
+	var err error
+	if roleRequestScope.GetSelector() != "" {
+		parsedSelector, _ := labels.Parse(roleRequestScope.GetSelector())
+		matchingCluster, err = clusterproxy.GetMatchingClusters(ctx, r.Client, parsedSelector, logger)
+		if err != nil {
+			return nil, err
 		}
 	}
 
-	return matching, nil
-}
-
-func (r *RoleRequestReconciler) getMatchingSveltosClusters(ctx context.Context, roleRequestScope *scope.RoleRequestScope,
-	parsedSelector labels.Selector) ([]corev1.ObjectReference, error) {
-
-	clusterList := &libsveltosv1alpha1.SveltosClusterList{}
-	if err := r.List(ctx, clusterList); err != nil {
-		roleRequestScope.Logger.Error(err, "failed to list all Cluster")
-		return nil, err
-	}
-
-	matching := make([]corev1.ObjectReference, 0)
-
-	for i := range clusterList.Items {
-		cluster := &clusterList.Items[i]
-
-		if !cluster.DeletionTimestamp.IsZero() {
-			// Only existing cluster can match
-			continue
-		}
-
-		addTypeInformationToObject(r.Scheme, cluster)
-		if parsedSelector.Matches(labels.Set(cluster.Labels)) {
-			matching = append(matching, corev1.ObjectReference{
-				Kind:       cluster.Kind,
-				Namespace:  cluster.Namespace,
-				Name:       cluster.Name,
-				APIVersion: cluster.APIVersion,
-			})
-		}
-	}
-
-	return matching, nil
+	return matchingCluster, nil
 }
 
 // updateClusterInfo updates RoleRequest Status ClusterInfo by adding an entry for any
