@@ -186,7 +186,10 @@ var _ = Describe("RoleRequets: Reconciler", func() {
 
 		roleRequest.Spec.ClusterSelector = libsveltosv1alpha1.Selector("env=qa,zone=west")
 
+		clusterCRD := generateTestClusterAPICRD("cluster", "clusters")
+
 		initObjects := []client.Object{
+			clusterCRD,
 			roleRequest,
 			matchingCluster,
 			sveltosCluster,
@@ -203,7 +206,7 @@ var _ = Describe("RoleRequets: Reconciler", func() {
 
 		roleRequestScope := getRoleRequestScope(c, klogr.New(), roleRequest)
 
-		matches, err := controllers.GetMatchingClusters(reconciler, context.TODO(), roleRequestScope)
+		matches, err := controllers.GetMatchingClusters(reconciler, context.TODO(), roleRequestScope, klogr.New())
 		Expect(err).To(BeNil())
 		Expect(len(matches)).To(Equal(2))
 		Expect(matches).To(ContainElement(
