@@ -399,7 +399,7 @@ spec:
         - --v=5
         command:
         - /manager
-        image: projectsveltos/access-manager-amd64:dev
+        image: projectsveltos/access-manager-amd64:v0.17.0
         livenessProbe:
           httpGet:
             path: /healthz
