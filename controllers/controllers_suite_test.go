@@ -38,7 +38,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -377,11 +377,11 @@ func generateTestClusterAPICRD(kind, pluralKind string) *apiextensionsv1.CustomR
 							Properties: map[string]apiextensionsv1.JSONSchemaProps{
 								"spec": {
 									Type:                   "object",
-									XPreserveUnknownFields: pointer.Bool(true),
+									XPreserveUnknownFields: ptr.To(true),
 								},
 								"status": {
 									Type:                   "object",
-									XPreserveUnknownFields: pointer.Bool(true),
+									XPreserveUnknownFields: ptr.To(true),
 								},
 							},
 						},
