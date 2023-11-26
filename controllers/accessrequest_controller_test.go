@@ -93,7 +93,7 @@ var _ = Describe("AccessRequestReconciler", func() {
 		Expect(currentSecret.Data).ToNot(BeNil())
 		Expect(reflect.DeepEqual(currentSecret.Data["data"], kubeconfig)).To(BeTrue())
 		Expect(currentSecret.Labels).ToNot(BeNil())
-		_, ok := currentSecret.Labels[libsveltosv1alpha1.AccessRequestLabelName]
+		_, ok := currentSecret.Labels[libsveltosv1alpha1.AccessRequestNameLabel]
 		Expect(ok).To(BeTrue())
 	})
 
