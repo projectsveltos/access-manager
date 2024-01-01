@@ -470,7 +470,7 @@ func (r *RoleRequestReconciler) getMatchingClusters(ctx context.Context, roleReq
 	var err error
 	if roleRequestScope.GetSelector() != "" {
 		parsedSelector, _ := labels.Parse(roleRequestScope.GetSelector())
-		matchingCluster, err = clusterproxy.GetMatchingClusters(ctx, r.Client, parsedSelector, logger)
+		matchingCluster, err = clusterproxy.GetMatchingClusters(ctx, r.Client, parsedSelector, "", logger)
 		if err != nil {
 			return nil, err
 		}

@@ -122,7 +122,7 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 
 	// Handle deleted classifier
 	if !accessRequest.DeletionTimestamp.IsZero() {
-		return r.reconcileDelete(ctx, accessRequestScope)
+		return reconcile.Result{}, r.reconcileDelete(ctx, accessRequestScope)
 	}
 
 	// Handle non-deleted accessRequestScope
@@ -132,7 +132,7 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 func (r *AccessRequestReconciler) reconcileDelete(
 	ctx context.Context,
 	accessRequestScope *scope.AccessRequestScope,
-) (reconcile.Result, error) {
+) error {
 
 	logger := accessRequestScope.Logger
 	logger.V(logs.LogInfo).Info("Reconciling AccessRequest delete")
@@ -141,7 +141,7 @@ func (r *AccessRequestReconciler) reconcileDelete(
 	if err != nil {
 		failureMessage := err.Error()
 		accessRequestScope.SetFailureMessage(&failureMessage)
-		return reconcile.Result{}, err
+		return err
 	}
 
 	// Cluster is deleted so remove the finalizer.
@@ -149,7 +149,7 @@ func (r *AccessRequestReconciler) reconcileDelete(
 	controllerutil.RemoveFinalizer(accessRequestScope.AccessRequest, libsveltosv1alpha1.AccessRequestFinalizer)
 
 	logger.V(logs.LogInfo).Info("Reconcile delete success")
-	return reconcile.Result{}, nil
+	return nil
 }
 
 func (r *AccessRequestReconciler) reconcileNormal(

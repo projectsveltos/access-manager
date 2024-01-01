@@ -17,11 +17,12 @@ limitations under the License.
 package scope_test
 
 import (
+	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/klog/v2/klogr"
+	"k8s.io/klog/v2/textlogger"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -32,8 +33,11 @@ import (
 var _ = Describe("RoleRequestScope", func() {
 	var roleRequest *libsveltosv1alpha1.RoleRequest
 	var c client.Client
+	var logger logr.Logger
 
 	BeforeEach(func() {
+		logger = textlogger.NewLogger(textlogger.NewConfig(textlogger.Verbosity(1)))
+
 		roleRequest = &libsveltosv1alpha1.RoleRequest{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: classifierNamePrefix + randomString(),
@@ -49,7 +53,7 @@ var _ = Describe("RoleRequestScope", func() {
 	It("Return nil,error if RoleRequest is not specified", func() {
 		params := scope.RoleRequestScopeParams{
 			Client: c,
-			Logger: klogr.New(),
+			Logger: logger,
 		}
 
 		scope, err := scope.NewRoleRequestScope(params)
@@ -60,7 +64,7 @@ var _ = Describe("RoleRequestScope", func() {
 	It("Return nil,error if client is not specified", func() {
 		params := scope.RoleRequestScopeParams{
 			RoleRequest: roleRequest,
-			Logger:      klogr.New(),
+			Logger:      logger,
 		}
 
 		scope, err := scope.NewRoleRequestScope(params)
@@ -72,7 +76,7 @@ var _ = Describe("RoleRequestScope", func() {
 		params := scope.RoleRequestScopeParams{
 			Client:      c,
 			RoleRequest: roleRequest,
-			Logger:      klogr.New(),
+			Logger:      logger,
 		}
 
 		scope, err := scope.NewRoleRequestScope(params)
@@ -86,7 +90,7 @@ var _ = Describe("RoleRequestScope", func() {
 		params := scope.RoleRequestScopeParams{
 			Client:      c,
 			RoleRequest: roleRequest,
-			Logger:      klogr.New(),
+			Logger:      logger,
 		}
 
 		scope, err := scope.NewRoleRequestScope(params)
@@ -110,7 +114,7 @@ var _ = Describe("RoleRequestScope", func() {
 		params := scope.RoleRequestScopeParams{
 			Client:      c,
 			RoleRequest: roleRequest,
-			Logger:      klogr.New(),
+			Logger:      logger,
 		}
 
 		scope, err := scope.NewRoleRequestScope(params)
@@ -138,7 +142,7 @@ var _ = Describe("RoleRequestScope", func() {
 		params := scope.RoleRequestScopeParams{
 			Client:      c,
 			RoleRequest: roleRequest,
-			Logger:      klogr.New(),
+			Logger:      logger,
 		}
 
 		scope, err := scope.NewRoleRequestScope(params)
