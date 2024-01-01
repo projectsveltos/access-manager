@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
@@ -30,7 +31,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/klog/v2/klogr"
+	"k8s.io/klog/v2/textlogger"
 
 	"github.com/projectsveltos/access-manager/controllers"
 	libsveltosv1alpha1 "github.com/projectsveltos/libsveltos/api/v1alpha1"
@@ -42,6 +43,12 @@ import (
 )
 
 var _ = Describe("Deployer utils", func() {
+	var logger logr.Logger
+
+	BeforeEach(func() {
+		logger = textlogger.NewLogger(textlogger.NewConfig(textlogger.Verbosity(1)))
+	})
+
 	It("createServiceAccountInManagedCluster creates ServiceAccount", func() {
 		ns := &corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
@@ -108,7 +115,7 @@ var _ = Describe("Deployer utils", func() {
 
 		// No errors when referenced resources do not exist
 		refs, err := controllers.CollectReferencedObjects(context.TODO(), c, randomString(),
-			roleRequest.Spec.RoleRefs, klogr.New())
+			roleRequest.Spec.RoleRefs, logger)
 		Expect(err).To(BeNil())
 		Expect(len(refs)).To(BeZero())
 
@@ -116,7 +123,7 @@ var _ = Describe("Deployer utils", func() {
 
 		// No errors when subset of referenced resources do not exist
 		refs, err = controllers.CollectReferencedObjects(context.TODO(), c, randomString(),
-			roleRequest.Spec.RoleRefs, klogr.New())
+			roleRequest.Spec.RoleRefs, logger)
 		Expect(err).To(BeNil())
 		Expect(len(refs)).To(Equal(1))
 
@@ -124,7 +131,7 @@ var _ = Describe("Deployer utils", func() {
 
 		// No errors when all referenced resources exist
 		refs, err = controllers.CollectReferencedObjects(context.TODO(), c, randomString(),
-			roleRequest.Spec.RoleRefs, klogr.New())
+			roleRequest.Spec.RoleRefs, logger)
 		Expect(err).To(BeNil())
 		Expect(len(refs)).To(Equal(2))
 	})
@@ -160,7 +167,7 @@ var _ = Describe("Deployer utils", func() {
 
 		// No errors when referenced resources do not exist
 		refs, err := controllers.CollectReferencedObjects(context.TODO(), c, clusterNamespace,
-			roleRequest.Spec.RoleRefs, klogr.New())
+			roleRequest.Spec.RoleRefs, logger)
 		Expect(err).To(BeNil())
 		Expect(len(refs)).To(BeZero())
 
@@ -168,7 +175,7 @@ var _ = Describe("Deployer utils", func() {
 
 		// No errors when subset of referenced resources do not exist
 		refs, err = controllers.CollectReferencedObjects(context.TODO(), c, clusterNamespace,
-			roleRequest.Spec.RoleRefs, klogr.New())
+			roleRequest.Spec.RoleRefs, logger)
 		Expect(err).To(BeNil())
 		Expect(len(refs)).To(Equal(1))
 
@@ -176,7 +183,7 @@ var _ = Describe("Deployer utils", func() {
 
 		// No errors when all referenced resources exist
 		refs, err = controllers.CollectReferencedObjects(context.TODO(), c, clusterNamespace,
-			roleRequest.Spec.RoleRefs, klogr.New())
+			roleRequest.Spec.RoleRefs, logger)
 		Expect(err).To(BeNil())
 		Expect(len(refs)).To(Equal(2))
 	})
@@ -292,7 +299,7 @@ var _ = Describe("Deployer utils", func() {
 		Expect(addTypeInformationToObject(scheme, roleRequest)).To(Succeed())
 
 		deployedResources, err := controllers.DeployReferencedResourceInManagedCluster(context.TODO(),
-			testEnv.Config, testEnv.Client, configMap, roleRequest, klogr.New())
+			testEnv.Config, testEnv.Client, configMap, roleRequest, logger)
 		Expect(err).To(BeNil())
 		Expect(deployedResources).ToNot(BeNil())
 		Expect(len(deployedResources)).To(Equal(2))
@@ -322,7 +329,7 @@ var _ = Describe("Deployer utils", func() {
 		}, timeout, pollingInterval).Should(BeTrue())
 
 		deployedResources, err = controllers.DeployReferencedResourceInManagedCluster(context.TODO(),
-			testEnv.Config, testEnv.Client, secret, roleRequest, klogr.New())
+			testEnv.Config, testEnv.Client, secret, roleRequest, logger)
 		Expect(err).To(BeNil())
 		Expect(deployedResources).ToNot(BeNil())
 		Expect(len(deployedResources)).To(Equal(2))
@@ -355,7 +362,7 @@ var _ = Describe("Deployer utils", func() {
 		configMap := createConfigMapWithPolicy(randomString(), configMapName,
 			fmt.Sprintf(viewClusterRole, randomString()))
 		Expect(addTypeInformationToObject(scheme, configMap)).To(Succeed())
-		Expect(controllers.IsClusterRoleOrRole(configMap, klogr.New())).To(BeFalse())
+		Expect(controllers.IsClusterRoleOrRole(configMap, logger)).To(BeFalse())
 
 		role := rbacv1.Role{
 			ObjectMeta: metav1.ObjectMeta{
@@ -364,7 +371,7 @@ var _ = Describe("Deployer utils", func() {
 			},
 		}
 		Expect(addTypeInformationToObject(scheme, &role)).To(Succeed())
-		Expect(controllers.IsClusterRoleOrRole(&role, klogr.New())).To(BeTrue())
+		Expect(controllers.IsClusterRoleOrRole(&role, logger)).To(BeTrue())
 
 		clusterRole := rbacv1.ClusterRole{
 			ObjectMeta: metav1.ObjectMeta{
@@ -372,7 +379,7 @@ var _ = Describe("Deployer utils", func() {
 			},
 		}
 		Expect(addTypeInformationToObject(scheme, &clusterRole)).To(Succeed())
-		Expect(controllers.IsClusterRoleOrRole(&clusterRole, klogr.New())).To(BeTrue())
+		Expect(controllers.IsClusterRoleOrRole(&clusterRole, logger)).To(BeTrue())
 	})
 
 	It("getReferenceResourceNamespace returns the referenced resource namespace when set. cluster namespace otherwise.", func() {
@@ -442,12 +449,12 @@ var _ = Describe("Deployer utils", func() {
 		// Creating the secret is essential as IsTimeExpired expects Secret to be present.
 		Expect(controllers.CreateSecretWithKubeconfig(context.TODO(), testEnv.Client, roleRequest,
 			clusterNamespace, clusterName, libsveltosv1alpha1.ClusterTypeSveltos,
-			[]byte(randomString()), &tokenRequest.Status, klogr.New())).To(Succeed())
+			[]byte(randomString()), &tokenRequest.Status, logger)).To(Succeed())
 
 		// Wait for cache to sync
 		Eventually(func() bool {
 			secret, err := controllers.GetSecretWithKubeconfig(context.TODO(),
-				testEnv.Client, roleRequest, clusterNamespace, clusterName, libsveltosv1alpha1.ClusterTypeSveltos, klogr.New())
+				testEnv.Client, roleRequest, clusterNamespace, clusterName, libsveltosv1alpha1.ClusterTypeSveltos, logger)
 			if err != nil || secret.Data == nil {
 				return false
 			}
@@ -459,7 +466,7 @@ var _ = Describe("Deployer utils", func() {
 
 		// Since expiration time was set in a day, expect result to be false
 		Expect(controllers.IsTimeExpired(context.TODO(), testEnv.Client, roleRequest,
-			clusterNamespace, clusterName, libsveltosv1alpha1.ClusterTypeSveltos, klogr.New())).To(BeFalse())
+			clusterNamespace, clusterName, libsveltosv1alpha1.ClusterTypeSveltos, logger)).To(BeFalse())
 	})
 })
 

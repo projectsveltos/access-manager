@@ -19,12 +19,13 @@ package controllers_test
 import (
 	"context"
 
+	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/klog/v2/klogr"
+	"k8s.io/klog/v2/textlogger"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -37,8 +38,11 @@ var _ = Describe("Cluster utils", func() {
 	var namespace string
 	var cluster *clusterv1.Cluster
 	var sveltosCluster *libsveltosv1alpha1.SveltosCluster
+	var logger logr.Logger
 
 	BeforeEach(func() {
+		logger = textlogger.NewLogger(textlogger.NewConfig(textlogger.Verbosity(1)))
+
 		namespace = "cluster-utils" + randomString()
 
 		cluster = &clusterv1.Cluster{
@@ -107,7 +111,7 @@ var _ = Describe("Cluster utils", func() {
 		sveltosSecret := corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: sveltosCluster.Namespace,
-				Name:      sveltosCluster.Name + "-sveltos-kubeconfig",
+				Name:      sveltosCluster.Name + sveltosKubeconfigPostfix,
 			},
 			Data: map[string][]byte{
 				"data": randomData,
@@ -135,12 +139,12 @@ var _ = Describe("Cluster utils", func() {
 			WithObjects(initObjects...).Build()
 
 		data, err := controllers.GetSecretData(context.TODO(), c, cluster.Namespace, cluster.Name,
-			libsveltosv1alpha1.ClusterTypeCapi, klogr.New())
+			libsveltosv1alpha1.ClusterTypeCapi, logger)
 		Expect(err).To(BeNil())
 		Expect(data).To(Equal(randomData))
 
 		data, err = controllers.GetSecretData(context.TODO(), c, sveltosCluster.Namespace, sveltosCluster.Name,
-			libsveltosv1alpha1.ClusterTypeSveltos, klogr.New())
+			libsveltosv1alpha1.ClusterTypeSveltos, logger)
 		Expect(err).To(BeNil())
 		Expect(data).To(Equal(randomData))
 	})

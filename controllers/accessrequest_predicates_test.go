@@ -22,7 +22,7 @@ import (
 
 	"github.com/go-logr/logr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/klog/v2/klogr"
+	"k8s.io/klog/v2/textlogger"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
 	"github.com/projectsveltos/access-manager/controllers"
@@ -34,7 +34,7 @@ var _ = Describe("AccessRequest Predicates: IfNewDeletedOrSpecChange", func() {
 	var accessRequest *libsveltosv1alpha1.AccessRequest
 
 	BeforeEach(func() {
-		logger = klogr.New()
+		logger = textlogger.NewLogger(textlogger.NewConfig(textlogger.Verbosity(1)))
 		accessRequest = &libsveltosv1alpha1.AccessRequest{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: randomString(),

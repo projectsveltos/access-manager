@@ -26,7 +26,7 @@ import (
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/klog/v2/klogr"
+	"k8s.io/klog/v2/textlogger"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
@@ -69,7 +69,7 @@ var _ = Describe("RoleRequest Predicates: ConfigMapPredicates", func() {
 	var configMap *corev1.ConfigMap
 
 	BeforeEach(func() {
-		logger = klogr.New()
+		logger = textlogger.NewLogger(textlogger.NewConfig(textlogger.Verbosity(1)))
 		configMap = &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: randomString(),
@@ -145,7 +145,8 @@ var _ = Describe("RoleRequest Predicates: SecretPredicates", func() {
 	var secret *corev1.Secret
 
 	BeforeEach(func() {
-		logger = klogr.New()
+		logger = textlogger.NewLogger(textlogger.NewConfig(textlogger.Verbosity(1)))
+
 		secret = &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: randomString(),
@@ -224,11 +225,12 @@ var _ = Describe("RoleRequest Predicates: SvelotsClusterPredicates", func() {
 	)
 
 	BeforeEach(func() {
-		logger = klogr.New()
+		logger = textlogger.NewLogger(textlogger.NewConfig(textlogger.Verbosity(1)))
+
 		cluster = &libsveltosv1alpha1.SveltosCluster{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      upstreamClusterNamePrefix + randomString(),
-				Namespace: "predicates" + randomString(),
+				Namespace: "sc-predicates" + randomString(),
 			},
 		}
 	})
@@ -387,11 +389,12 @@ var _ = Describe("RoleRequest Predicates: ClusterPredicates", func() {
 	)
 
 	BeforeEach(func() {
-		logger = klogr.New()
+		logger = textlogger.NewLogger(textlogger.NewConfig(textlogger.Verbosity(1)))
+
 		cluster = &clusterv1.Cluster{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      upstreamClusterNamePrefix + randomString(),
-				Namespace: "predicates" + randomString(),
+				Namespace: "c-predicates" + randomString(),
 			},
 		}
 	})

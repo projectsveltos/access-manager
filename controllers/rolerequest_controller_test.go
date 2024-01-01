@@ -19,6 +19,7 @@ package controllers_test
 import (
 	"context"
 
+	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	authenticationv1 "k8s.io/api/authentication/v1"
@@ -26,7 +27,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/klog/v2/klogr"
+	"k8s.io/klog/v2/textlogger"
 
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -41,8 +42,10 @@ import (
 
 var _ = Describe("RoleRequets: Reconciler", func() {
 	var roleRequest *libsveltosv1alpha1.RoleRequest
+	var logger logr.Logger
 
 	BeforeEach(func() {
+		logger = textlogger.NewLogger(textlogger.NewConfig(textlogger.Verbosity(1)))
 		roleRequest = getRoleRequest(nil, nil, randomString(), randomString())
 	})
 
@@ -120,7 +123,7 @@ var _ = Describe("RoleRequets: Reconciler", func() {
 		Expect(c.Get(context.TODO(), roleRequestName, currentRoleRequest)).To(Succeed())
 		Expect(c.Delete(context.TODO(), currentRoleRequest)).To(Succeed())
 
-		dep := fakedeployer.GetClient(context.TODO(), klogr.New(), testEnv.Client)
+		dep := fakedeployer.GetClient(context.TODO(), logger, testEnv.Client)
 		Expect(dep.RegisterFeatureID(libsveltosv1alpha1.FeatureRoleRequest)).To(Succeed())
 
 		reconciler := getRoleRequestReconciler(c, dep)
@@ -204,9 +207,9 @@ var _ = Describe("RoleRequets: Reconciler", func() {
 
 		reconciler := getRoleRequestReconciler(c, nil)
 
-		roleRequestScope := getRoleRequestScope(c, klogr.New(), roleRequest)
+		roleRequestScope := getRoleRequestScope(c, logger, roleRequest)
 
-		matches, err := controllers.GetMatchingClusters(reconciler, context.TODO(), roleRequestScope, klogr.New())
+		matches, err := controllers.GetMatchingClusters(reconciler, context.TODO(), roleRequestScope, logger)
 		Expect(err).To(BeNil())
 		Expect(len(matches)).To(Equal(2))
 		Expect(matches).To(ContainElement(
@@ -282,13 +285,13 @@ var _ = Describe("RoleRequets: Reconciler", func() {
 			// Owner of those secrets is the roleRequest.
 			Expect(controllers.CreateSecretWithKubeconfig(context.TODO(), testEnv.Client, roleRequest,
 				clusters[i].namespace, clusters[i].name, libsveltosv1alpha1.ClusterTypeSveltos,
-				[]byte(randomString()), &tokenRequest.Status, klogr.New())).To(Succeed())
+				[]byte(randomString()), &tokenRequest.Status, logger)).To(Succeed())
 
 			// Wait for cache to sync
 			Eventually(func() error {
 				_, err := controllers.GetSecretWithKubeconfig(context.TODO(),
 					testEnv.Client, roleRequest, clusters[i].namespace,
-					clusters[i].name, libsveltosv1alpha1.ClusterTypeSveltos, klogr.New())
+					clusters[i].name, libsveltosv1alpha1.ClusterTypeSveltos, logger)
 				return err
 			}, timeout, pollingInterval).Should(BeNil())
 		}
@@ -296,10 +299,10 @@ var _ = Describe("RoleRequets: Reconciler", func() {
 		// Test is pretending this roleRequest was deployed in 3 different clusters.
 		// Token expiration time is set to one day for a cluster, two days for a second cluster
 		// and three days for the third cluster
-		roleRequestScope := getRoleRequestScope(testEnv.Client, klogr.New(), roleRequest)
+		roleRequestScope := getRoleRequestScope(testEnv.Client, logger, roleRequest)
 		roleRequestReconciler := getRoleRequestReconciler(testEnv.Client, nil)
 		nextReconciliationTime, err := controllers.GetClosestExpirationTime(roleRequestReconciler,
-			context.TODO(), roleRequestScope, klogr.New())
+			context.TODO(), roleRequestScope, logger)
 		Expect(err).To(BeNil())
 		Expect(nextReconciliationTime).ToNot(BeNil())
 		// Verify that nextReconciliationTime is less than a day and within 10 seconds from a day

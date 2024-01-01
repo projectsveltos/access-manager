@@ -22,7 +22,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/klog/v2/klogr"
+	"k8s.io/klog/v2/textlogger"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -35,12 +35,8 @@ func (r *RoleRequestReconciler) requeueRoleRequestForReference(
 	ctx context.Context, o client.Object,
 ) []reconcile.Request {
 
-	logger := klogr.New().WithValues(
-		"objectMapper",
-		"requeueRoleRequestForReference",
-		"reference",
-		o.GetName(),
-	)
+	logger := textlogger.NewLogger(textlogger.NewConfig(textlogger.Verbosity(1))).WithValues(
+		"reference", fmt.Sprintf("%s/%s", o.GetNamespace(), o.GetName()))
 
 	logger.V(logs.LogDebug).Info("reacting to configMap/secret change")
 
@@ -106,14 +102,8 @@ func (r *RoleRequestReconciler) requeueRoleRequestForCluster(
 ) []reconcile.Request {
 
 	cluster := o
-	logger := klogr.New().WithValues(
-		"objectMapper",
-		"requeueRoleRequestForCluster",
-		"namespace",
-		cluster.GetNamespace(),
-		"cluster",
-		cluster.GetName(),
-	)
+	logger := textlogger.NewLogger(textlogger.NewConfig(textlogger.Verbosity(1))).WithValues(
+		"cluster", fmt.Sprintf("%s/%s", cluster.GetNamespace(), cluster.GetName()))
 
 	logger.V(logs.LogDebug).Info("reacting to Cluster change")
 

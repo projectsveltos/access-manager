@@ -62,10 +62,11 @@ var (
 )
 
 const (
-	timeout               = 40 * time.Second
-	pollingInterval       = 2 * time.Second
-	clusterAPIGroup       = "cluster.x-k8s.io"
-	clusterAPITestVersion = "v1beta1"
+	timeout                  = 40 * time.Second
+	pollingInterval          = 2 * time.Second
+	clusterAPIGroup          = "cluster.x-k8s.io"
+	clusterAPITestVersion    = "v1beta1"
+	sveltosKubeconfigPostfix = "-sveltos-kubeconfig"
 )
 
 func TestControllers(t *testing.T) {
@@ -315,7 +316,7 @@ func prepareForTesting(cluster *libsveltosv1alpha1.SveltosCluster) {
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: cluster.Namespace,
-			Name:      cluster.Name + "-sveltos-kubeconfig",
+			Name:      cluster.Name + sveltosKubeconfigPostfix,
 		},
 		Data: map[string][]byte{
 			"data": testEnv.Kubeconfig,
