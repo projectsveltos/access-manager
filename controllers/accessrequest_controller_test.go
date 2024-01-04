@@ -27,7 +27,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/klog/v2/klogr"
+	"k8s.io/klog/v2/textlogger"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/projectsveltos/access-manager/controllers"
@@ -67,7 +67,7 @@ var _ = Describe("AccessRequestReconciler", func() {
 		var err error
 		arScope, err = scope.NewAccessRequestScope(scope.AccessRequestScopeParams{
 			Client:         testEnv.Client,
-			Logger:         klogr.New(),
+			Logger:         textlogger.NewLogger(textlogger.NewConfig(textlogger.Verbosity(1))),
 			AccessRequest:  accessRequest,
 			ControllerName: "accessRequest",
 		})
@@ -318,7 +318,8 @@ var _ = Describe("AccessRequestReconciler", func() {
 		waitForObject(context.TODO(), testEnv.Client, secret)
 		waitForObject(context.TODO(), testEnv.Client, roleBinding)
 
-		Expect(controllers.Cleanup(reconciler, context.TODO(), arScope, klogr.New())).To(Succeed())
+		logger := textlogger.NewLogger(textlogger.NewConfig(textlogger.Verbosity(1)))
+		Expect(controllers.Cleanup(reconciler, context.TODO(), arScope, logger)).To(Succeed())
 
 		// Eventual loop so testEnv Cache is synced
 		Eventually(func() bool {

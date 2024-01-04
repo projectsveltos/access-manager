@@ -17,11 +17,12 @@ limitations under the License.
 package scope_test
 
 import (
+	"github.com/go-logr/logr"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/klog/v2/klogr"
+	"k8s.io/klog/v2/textlogger"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -38,8 +39,11 @@ const (
 var _ = Describe("AccessRequestScope", func() {
 	var accessRequest *libsveltosv1alpha1.AccessRequest
 	var c client.Client
+	var logger logr.Logger
 
 	BeforeEach(func() {
+		logger = textlogger.NewLogger(textlogger.NewConfig(textlogger.Verbosity(1)))
+
 		accessRequest = &libsveltosv1alpha1.AccessRequest{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: classifierNamePrefix + randomString(),
@@ -55,7 +59,7 @@ var _ = Describe("AccessRequestScope", func() {
 	It("Return nil,error if AccessRequest is not specified", func() {
 		params := scope.AccessRequestScopeParams{
 			Client: c,
-			Logger: klogr.New(),
+			Logger: logger,
 		}
 
 		scope, err := scope.NewAccessRequestScope(params)
@@ -66,7 +70,7 @@ var _ = Describe("AccessRequestScope", func() {
 	It("Return nil,error if client is not specified", func() {
 		params := scope.AccessRequestScopeParams{
 			AccessRequest: accessRequest,
-			Logger:        klogr.New(),
+			Logger:        logger,
 		}
 
 		scope, err := scope.NewAccessRequestScope(params)
@@ -78,7 +82,7 @@ var _ = Describe("AccessRequestScope", func() {
 		params := scope.AccessRequestScopeParams{
 			Client:        c,
 			AccessRequest: accessRequest,
-			Logger:        klogr.New(),
+			Logger:        logger,
 		}
 
 		scope, err := scope.NewAccessRequestScope(params)
@@ -92,7 +96,7 @@ var _ = Describe("AccessRequestScope", func() {
 		params := scope.AccessRequestScopeParams{
 			Client:        c,
 			AccessRequest: accessRequest,
-			Logger:        klogr.New(),
+			Logger:        logger,
 		}
 
 		scope, err := scope.NewAccessRequestScope(params)
@@ -114,7 +118,7 @@ var _ = Describe("AccessRequestScope", func() {
 		params := scope.AccessRequestScopeParams{
 			Client:        c,
 			AccessRequest: accessRequest,
-			Logger:        klogr.New(),
+			Logger:        logger,
 		}
 
 		scope, err := scope.NewAccessRequestScope(params)
