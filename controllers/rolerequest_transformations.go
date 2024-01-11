@@ -130,7 +130,12 @@ func (r *RoleRequestReconciler) requeueRoleRequestForCluster(
 	// matching the Cluster
 	for k := range r.RoleRequests {
 		clusterProfileSelector := r.RoleRequests[k]
-		parsedSelector, _ := labels.Parse(string(clusterProfileSelector))
+		parsedSelector, err := labels.Parse(string(clusterProfileSelector))
+		if err != nil {
+			// When clusterSelector is fixed, this RoleRequest instance will
+			// be reconciled
+			continue
+		}
 		if parsedSelector.Matches(labels.Set(cluster.GetLabels())) {
 			l := logger.WithValues("roleRequest", k.Name)
 			l.V(logs.LogDebug).Info("queuing roleRequest")
