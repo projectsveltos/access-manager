@@ -467,9 +467,12 @@ func (r *RoleRequestReconciler) getMatchingClusters(ctx context.Context, roleReq
 	logger logr.Logger) ([]corev1.ObjectReference, error) {
 
 	var matchingCluster []corev1.ObjectReference
-	var err error
 	if roleRequestScope.GetSelector() != "" {
-		parsedSelector, _ := labels.Parse(roleRequestScope.GetSelector())
+		parsedSelector, err := labels.Parse(roleRequestScope.GetSelector())
+		if err != nil {
+			logger.V(logs.LogInfo).Info(fmt.Sprintf("failed to parse clusterSelector: %v", err))
+			return nil, err
+		}
 		matchingCluster, err = clusterproxy.GetMatchingClusters(ctx, r.Client, parsedSelector, "", logger)
 		if err != nil {
 			return nil, err
