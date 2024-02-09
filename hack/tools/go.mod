@@ -7,9 +7,9 @@ require (
 	github.com/onsi/ginkgo/v2 v2.15.0
 	golang.org/x/oauth2 v0.14.0
 	k8s.io/client-go v0.29.1
-	sigs.k8s.io/controller-runtime/tools/setup-envtest v0.0.0-20240123110158-b88ed7a3602b
+	sigs.k8s.io/controller-runtime/tools/setup-envtest v0.0.0-20240207180939-7032a3cc91d2
 	sigs.k8s.io/controller-tools v0.12.0
-	sigs.k8s.io/kind v0.20.0
+	sigs.k8s.io/kind v0.21.0
 )
 
 require (
@@ -40,8 +40,7 @@ require (
 	github.com/spf13/afero v1.6.0 // indirect
 	github.com/spf13/cobra v1.7.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	go.uber.org/goleak v1.2.1 // indirect
-	go.uber.org/multierr v1.11.0 // indirect
+	go.uber.org/multierr v1.10.0 // indirect
 	go.uber.org/zap v1.26.0 // indirect
 	golang.org/x/mod v0.14.0 // indirect
 	golang.org/x/net v0.19.0 // indirect
@@ -56,7 +55,7 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/api v0.29.1 // indirect
-	k8s.io/apiextensions-apiserver v0.28.3 // indirect
+	k8s.io/apiextensions-apiserver v0.27.1 // indirect
 	k8s.io/apimachinery v0.29.1 // indirect
 	k8s.io/klog/v2 v2.110.1 // indirect
 	k8s.io/utils v0.0.0-20230726121419-3b25d923346b // indirect
