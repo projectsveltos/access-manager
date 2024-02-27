@@ -64,6 +64,18 @@ rules:
   - list
   - watch
 - apiGroups:
+  - authentication.k8s.io
+  resources:
+  - tokenreviews
+  verbs:
+  - create
+- apiGroups:
+  - authorization.k8s.io
+  resources:
+  - subjectaccessreviews
+  verbs:
+  - create
+- apiGroups:
   - cluster.x-k8s.io
   resources:
   - clusters
@@ -222,34 +234,6 @@ rules:
   - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: access-metrics-reader
-rules:
-- nonResourceURLs:
-  - /metrics
-  verbs:
-  - get
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: access-proxy-role
-rules:
-- apiGroups:
-  - authentication.k8s.io
-  resources:
-  - tokenreviews
-  verbs:
-  - create
-- apiGroups:
-  - authorization.k8s.io
-  resources:
-  - subjectaccessreviews
-  verbs:
-  - create
----
-apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: access-manager-rolebinding
@@ -261,35 +245,6 @@ subjects:
 - kind: ServiceAccount
   name: access-manager
   namespace: projectsveltos
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: access-proxy-rolebinding
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: access-proxy-role
-subjects:
-- kind: ServiceAccount
-  name: access-manager
-  namespace: projectsveltos
----
-apiVersion: v1
-kind: Service
-metadata:
-  labels:
-    control-plane: access-manager
-  name: access-manager-metrics-service
-  namespace: projectsveltos
-spec:
-  ports:
-  - name: https
-    port: 8443
-    protocol: TCP
-    targetPort: https
-  selector:
-    control-plane: access-manager
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -317,7 +272,7 @@ spec:
         - --v=5
         command:
         - /manager
-        image: projectsveltos/access-manager-amd64:v0.24.0
+        image: projectsveltos/access-manager-amd64:dev
         livenessProbe:
           httpGet:
             path: /healthz
@@ -337,29 +292,6 @@ spec:
             memory: 128Mi
           requests:
             cpu: 10m
-            memory: 64Mi
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
-      - args:
-        - --secure-listen-address=0.0.0.0:8443
-        - --upstream=http://127.0.0.1:8080/
-        - --logtostderr=true
-        - --v=0
-        image: gcr.io/kubebuilder/kube-rbac-proxy:v0.12.0
-        name: kube-rbac-proxy
-        ports:
-        - containerPort: 8443
-          name: https
-          protocol: TCP
-        resources:
-          limits:
-            cpu: 500m
-            memory: 128Mi
-          requests:
-            cpu: 5m
             memory: 64Mi
         securityContext:
           allowPrivilegeEscalation: false
