@@ -31,6 +31,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -59,20 +60,25 @@ import (
 
 var (
 	setupLog             = ctrl.Log.WithName("setup")
-	metricsAddr          string
-	probeAddr            string
+	diagnosticsAddress   string
+	insecureDiagnostics  bool
 	concurrentReconciles int
 	workers              int
 	restConfigQPS        float32
 	restConfigBurst      int
 	webhookPort          int
 	syncPeriod           time.Duration
+	healthAddr           string
 )
 
 const (
 	defaultReconcilers = 10
 	defaultWorkers     = 20
 )
+
+// Add RBAC for the authorized diagnostics endpoint.
+//+kubebuilder:rbac:groups=authentication.k8s.io,resources=tokenreviews,verbs=create
+//+kubebuilder:rbac:groups=authorization.k8s.io,resources=subjectaccessreviews,verbs=create
 
 func main() {
 	scheme, err := controllers.InitScheme()
@@ -91,10 +97,8 @@ func main() {
 
 	ctrlOptions := ctrl.Options{
 		Scheme:                 scheme,
-		HealthProbeBindAddress: probeAddr,
-		Metrics: metricsserver.Options{
-			BindAddress: metricsAddr,
-		},
+		Metrics:                getDiagnosticsOptions(),
+		HealthProbeBindAddress: healthAddr,
 		WebhookServer: webhook.NewServer(
 			webhook.Options{
 				Port: webhookPort,
@@ -175,15 +179,13 @@ func main() {
 }
 
 func initFlags(fs *pflag.FlagSet) {
-	fs.StringVar(&metricsAddr,
-		"metrics-bind-address",
-		":8080",
-		"The address the metric endpoint binds to.")
+	fs.StringVar(&diagnosticsAddress, "diagnostics-address", ":8443",
+		"The address the diagnostics endpoint binds to. Per default metrics are served via https and with"+
+			"authentication/authorization. To serve via http and without authentication/authorization set --insecure-diagnostics."+
+			"If --insecure-diagnostics is not set the diagnostics endpoint also serves pprof endpoints and an endpoint to change the log level.")
 
-	fs.StringVar(&probeAddr,
-		"health-probe-bind-address",
-		":8081",
-		"The address the probe endpoint binds to.")
+	fs.BoolVar(&insecureDiagnostics, "insecure-diagnostics", false,
+		"Enable insecure diagnostics serving. For more details see the description of --diagnostics-address.")
 
 	fs.IntVar(
 		&concurrentReconciles,
@@ -196,6 +198,9 @@ func initFlags(fs *pflag.FlagSet) {
 		"worker-number",
 		defaultWorkers,
 		"Number of worker. Workers are used to deploy features in clusters")
+
+	fs.StringVar(&healthAddr, "health-addr", ":9440",
+		"The address the health endpoint binds to.")
 
 	const defautlRestConfigQPS = 20
 	fs.Float32Var(&restConfigQPS, "kube-api-qps", defautlRestConfigQPS,
@@ -268,5 +273,26 @@ func capiCRDHandler(gvk *schema.GroupVersionKind) {
 		if killErr := syscall.Kill(syscall.Getpid(), syscall.SIGTERM); killErr != nil {
 			panic("kill -TERM failed")
 		}
+	}
+}
+
+// getDiagnosticsOptions returns metrics options which can be used to configure a Manager.
+func getDiagnosticsOptions() metricsserver.Options {
+	// If "--insecure-diagnostics" is set, serve metrics via http
+	// and without authentication/authorization.
+	if insecureDiagnostics {
+		return metricsserver.Options{
+			BindAddress:   diagnosticsAddress,
+			SecureServing: false,
+		}
+	}
+
+	// If "--insecure-diagnostics" is not set, serve metrics via https
+	// and with authentication/authorization. As the endpoint is protected,
+	// we also serve pprof endpoints and an endpoint to change the log level.
+	return metricsserver.Options{
+		BindAddress:    diagnosticsAddress,
+		SecureServing:  true,
+		FilterProvider: filters.WithAuthenticationAndAuthorization,
 	}
 }
