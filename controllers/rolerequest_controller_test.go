@@ -164,6 +164,9 @@ var _ = Describe("RoleRequets: Reconciler", func() {
 					"zone": "west",
 				},
 			},
+			Status: libsveltosv1alpha1.SveltosClusterStatus{
+				Ready: true,
+			},
 		}
 
 		matchingCluster := &clusterv1.Cluster{
@@ -175,6 +178,9 @@ var _ = Describe("RoleRequets: Reconciler", func() {
 					"zone": "west",
 				},
 			},
+			Status: clusterv1.ClusterStatus{
+				ControlPlaneReady: true,
+			},
 		}
 
 		nonMatchingCluster := &clusterv1.Cluster{
@@ -184,6 +190,9 @@ var _ = Describe("RoleRequets: Reconciler", func() {
 				Labels: map[string]string{
 					"zone": "west",
 				},
+			},
+			Status: clusterv1.ClusterStatus{
+				ControlPlaneReady: true,
 			},
 		}
 
