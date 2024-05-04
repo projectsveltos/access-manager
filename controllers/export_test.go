@@ -31,12 +31,12 @@ var (
 )
 
 var (
-	RequeueRoleRequestForCluster   = (*RoleRequestReconciler).requeueRoleRequestForCluster
-	RequeueRoleRequestForReference = (*RoleRequestReconciler).requeueRoleRequestForReference
-	ProcessRoleRequest             = (*RoleRequestReconciler).processRoleRequest
-	RemoveRoleRequest              = (*RoleRequestReconciler).removeRoleRequest
-	GetMatchingClusters            = (*RoleRequestReconciler).getMatchingClusters
-	GetClosestExpirationTime       = (*RoleRequestReconciler).getClosestExpirationTime
+	RequeueRoleRequestForSveltosCluster = (*RoleRequestReconciler).requeueRoleRequestForSveltosCluster
+	RequeueRoleRequestForReference      = (*RoleRequestReconciler).requeueRoleRequestForReference
+	ProcessRoleRequest                  = (*RoleRequestReconciler).processRoleRequest
+	RemoveRoleRequest                   = (*RoleRequestReconciler).removeRoleRequest
+	GetMatchingClusters                 = (*RoleRequestReconciler).getMatchingClusters
+	GetClosestExpirationTime            = (*RoleRequestReconciler).getClosestExpirationTime
 )
 
 const (

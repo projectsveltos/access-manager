@@ -400,42 +400,30 @@ var _ = Describe("RoleRequest Predicates: ClusterPredicates", func() {
 	})
 
 	It("Create reprocesses when v1Cluster is unpaused", func() {
-		clusterPredicate := controllers.ClusterPredicates(logger)
+		clusterPredicate := controllers.ClusterPredicate{Logger: logger}
 
 		cluster.Spec.Paused = false
 
-		e := event.CreateEvent{
-			Object: cluster,
-		}
-
-		result := clusterPredicate.Create(e)
+		result := clusterPredicate.Create(event.TypedCreateEvent[*clusterv1.Cluster]{Object: cluster})
 		Expect(result).To(BeTrue())
 	})
 	It("Create does not reprocess when v1Cluster is paused", func() {
-		clusterPredicate := controllers.ClusterPredicates(logger)
+		clusterPredicate := controllers.ClusterPredicate{Logger: logger}
 
 		cluster.Spec.Paused = true
 		cluster.Annotations = map[string]string{clusterv1.PausedAnnotation: "true"}
 
-		e := event.CreateEvent{
-			Object: cluster,
-		}
-
-		result := clusterPredicate.Create(e)
+		result := clusterPredicate.Create(event.TypedCreateEvent[*clusterv1.Cluster]{Object: cluster})
 		Expect(result).To(BeFalse())
 	})
 	It("Delete does reprocess ", func() {
-		clusterPredicate := controllers.ClusterPredicates(logger)
+		clusterPredicate := controllers.ClusterPredicate{Logger: logger}
 
-		e := event.DeleteEvent{
-			Object: cluster,
-		}
-
-		result := clusterPredicate.Delete(e)
+		result := clusterPredicate.Delete(event.TypedDeleteEvent[*clusterv1.Cluster]{Object: cluster})
 		Expect(result).To(BeTrue())
 	})
 	It("Update reprocesses when v1Cluster paused changes from true to false", func() {
-		clusterPredicate := controllers.ClusterPredicates(logger)
+		clusterPredicate := controllers.ClusterPredicate{Logger: logger}
 
 		cluster.Spec.Paused = false
 
@@ -448,16 +436,12 @@ var _ = Describe("RoleRequest Predicates: ClusterPredicates", func() {
 		oldCluster.Spec.Paused = true
 		oldCluster.Annotations = map[string]string{clusterv1.PausedAnnotation: "true"}
 
-		e := event.UpdateEvent{
-			ObjectNew: cluster,
-			ObjectOld: oldCluster,
-		}
-
-		result := clusterPredicate.Update(e)
+		result := clusterPredicate.Update(event.TypedUpdateEvent[*clusterv1.Cluster]{
+			ObjectNew: cluster, ObjectOld: oldCluster})
 		Expect(result).To(BeTrue())
 	})
 	It("Update does not reprocess when v1Cluster paused changes from false to true", func() {
-		clusterPredicate := controllers.ClusterPredicates(logger)
+		clusterPredicate := controllers.ClusterPredicate{Logger: logger}
 
 		cluster.Spec.Paused = true
 		cluster.Annotations = map[string]string{clusterv1.PausedAnnotation: "true"}
@@ -469,16 +453,12 @@ var _ = Describe("RoleRequest Predicates: ClusterPredicates", func() {
 		}
 		oldCluster.Spec.Paused = false
 
-		e := event.UpdateEvent{
-			ObjectNew: cluster,
-			ObjectOld: oldCluster,
-		}
-
-		result := clusterPredicate.Update(e)
+		result := clusterPredicate.Update(event.TypedUpdateEvent[*clusterv1.Cluster]{
+			ObjectNew: cluster, ObjectOld: oldCluster})
 		Expect(result).To(BeFalse())
 	})
 	It("Update does not reprocess when v1Cluster paused has not changed", func() {
-		clusterPredicate := controllers.ClusterPredicates(logger)
+		clusterPredicate := controllers.ClusterPredicate{Logger: logger}
 
 		cluster.Spec.Paused = false
 		oldCluster := &clusterv1.Cluster{
@@ -489,16 +469,12 @@ var _ = Describe("RoleRequest Predicates: ClusterPredicates", func() {
 		}
 		oldCluster.Spec.Paused = false
 
-		e := event.UpdateEvent{
-			ObjectNew: cluster,
-			ObjectOld: oldCluster,
-		}
-
-		result := clusterPredicate.Update(e)
+		result := clusterPredicate.Update(event.TypedUpdateEvent[*clusterv1.Cluster]{
+			ObjectNew: cluster, ObjectOld: oldCluster})
 		Expect(result).To(BeFalse())
 	})
 	It("Update reprocesses when v1Cluster labels change", func() {
-		clusterPredicate := controllers.ClusterPredicates(logger)
+		clusterPredicate := controllers.ClusterPredicate{Logger: logger}
 
 		cluster.Labels = map[string]string{"department": "eng"}
 
@@ -510,12 +486,8 @@ var _ = Describe("RoleRequest Predicates: ClusterPredicates", func() {
 			},
 		}
 
-		e := event.UpdateEvent{
-			ObjectNew: cluster,
-			ObjectOld: oldCluster,
-		}
-
-		result := clusterPredicate.Update(e)
+		result := clusterPredicate.Update(event.TypedUpdateEvent[*clusterv1.Cluster]{
+			ObjectNew: cluster, ObjectOld: oldCluster})
 		Expect(result).To(BeTrue())
 	})
 })
