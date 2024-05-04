@@ -31,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -279,6 +280,24 @@ func (r *RoleRequestReconciler) SetupWithManager(mgr ctrl.Manager) (controller.C
 		WithOptions(controller.Options{
 			MaxConcurrentReconciles: r.ConcurrentReconciles,
 		}).
+		Watches(&libsveltosv1alpha1.SveltosCluster{},
+			handler.EnqueueRequestsFromMapFunc(r.requeueRoleRequestForSveltosCluster),
+			builder.WithPredicates(
+				SveltosClusterPredicates(mgr.GetLogger().WithValues("predicate", "sveltosclusterpredicate")),
+			),
+		).
+		Watches(&corev1.ConfigMap{},
+			handler.EnqueueRequestsFromMapFunc(r.requeueRoleRequestForReference),
+			builder.WithPredicates(
+				ConfigMapPredicates(mgr.GetLogger().WithValues("predicate", "configmappredicate")),
+			),
+		).
+		Watches(&corev1.Secret{},
+			handler.EnqueueRequestsFromMapFunc(r.requeueRoleRequestForReference),
+			builder.WithPredicates(
+				SecretPredicates(mgr.GetLogger().WithValues("predicate", "secretpredicate")),
+			),
+		).
 		Build(r)
 	if err != nil {
 		return nil, errors.Wrap(err, "error creating controller")
@@ -287,43 +306,24 @@ func (r *RoleRequestReconciler) SetupWithManager(mgr ctrl.Manager) (controller.C
 	// At this point we don't know yet whether CAPI is present in the cluster.
 	// Later on, in main, we detect that and if CAPI is present WatchForCAPI will be invoked.
 
-	// When Sveltos Cluster changes (from paused to unpaused), one or more ClusterSummaries
-	// need to be reconciled.
-	err = c.Watch(source.Kind(mgr.GetCache(), &libsveltosv1alpha1.SveltosCluster{}),
-		handler.EnqueueRequestsFromMapFunc(r.requeueRoleRequestForCluster),
-		SveltosClusterPredicates(mgr.GetLogger().WithValues("predicate", "clusterpredicate")),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	// When ConfigMap changes, according to ConfigMapPredicates,
-	// one or more ClusterSummaries need to be reconciled.
-	err = c.Watch(source.Kind(mgr.GetCache(), &corev1.ConfigMap{}),
-		handler.EnqueueRequestsFromMapFunc(r.requeueRoleRequestForReference),
-		ConfigMapPredicates(mgr.GetLogger().WithValues("predicate", "configmappredicate")),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	// When Secret changes, according to SecretPredicates,
-	// one or more ClusterSummaries need to be reconciled.
-	err = c.Watch(source.Kind(mgr.GetCache(), &corev1.Secret{}),
-		handler.EnqueueRequestsFromMapFunc(r.requeueRoleRequestForReference),
-		SecretPredicates(mgr.GetLogger().WithValues("predicate", "secretpredicate")),
-	)
-
 	return c, err
 }
 
 func (r *RoleRequestReconciler) WatchForCAPI(mgr ctrl.Manager, c controller.Controller) error {
-	// When CAPI Cluster changes (from paused to unpaused), one or more ClusterSummaries
-	// need to be reconciled.
-	return c.Watch(source.Kind(mgr.GetCache(), &clusterv1.Cluster{}),
-		handler.EnqueueRequestsFromMapFunc(r.requeueRoleRequestForCluster),
-		ClusterPredicates(mgr.GetLogger().WithValues("predicate", "clusterpredicate")),
+	sourceCluster := source.Kind[*clusterv1.Cluster](
+		mgr.GetCache(),
+		&clusterv1.Cluster{},
+		handler.TypedEnqueueRequestsFromMapFunc(r.requeueRoleRequestForCluster),
+		ClusterPredicate{Logger: mgr.GetLogger().WithValues("predicate", "clusterpredicate")},
 	)
+
+	// When cluster-api cluster changes, according to ClusterPredicates,
+	// one or more ClusterProfiles need to be reconciled.
+	if err := c.Watch(sourceCluster); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (r *RoleRequestReconciler) getClusterMapForEntry(entry *corev1.ObjectReference) *libsveltosset.Set {

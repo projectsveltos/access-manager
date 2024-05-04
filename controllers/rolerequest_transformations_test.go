@@ -195,7 +195,7 @@ var _ = Describe("ClustersummaryTransformations map functions", func() {
 		reconciler.RoleRequestClusterMap[matchingInfo] = clusterSet2
 
 		By("Expect only matchingRoleRequest to be requeued")
-		requests := controllers.RequeueRoleRequestForCluster(reconciler, context.TODO(), cluster)
+		requests := controllers.RequeueRoleRequestForSveltosCluster(reconciler, context.TODO(), cluster)
 		expected := reconcile.Request{NamespacedName: types.NamespacedName{Name: matchingRoleRequest.Name}}
 		Expect(requests).To(ContainElement(expected))
 
@@ -211,7 +211,7 @@ var _ = Describe("ClustersummaryTransformations map functions", func() {
 		clusterProfileSet.Insert(&nonMatchingInfo)
 		reconciler.ClusterMap[clusterInfo] = clusterProfileSet
 
-		requests = controllers.RequeueRoleRequestForCluster(reconciler, context.TODO(), cluster)
+		requests = controllers.RequeueRoleRequestForSveltosCluster(reconciler, context.TODO(), cluster)
 		expected = reconcile.Request{NamespacedName: types.NamespacedName{Name: matchingRoleRequest.Name}}
 		Expect(requests).To(ContainElement(expected))
 		expected = reconcile.Request{NamespacedName: types.NamespacedName{Name: nonMatchingRoleRequest.Name}}
@@ -231,7 +231,7 @@ var _ = Describe("ClustersummaryTransformations map functions", func() {
 		reconciler.RoleRequests[matchingInfo] = matchingRoleRequest.Spec.ClusterSelector
 		reconciler.RoleRequests[nonMatchingInfo] = nonMatchingRoleRequest.Spec.ClusterSelector
 
-		requests = controllers.RequeueRoleRequestForCluster(reconciler, context.TODO(), cluster)
+		requests = controllers.RequeueRoleRequestForSveltosCluster(reconciler, context.TODO(), cluster)
 		Expect(requests).To(HaveLen(0))
 	})
 })
