@@ -23,6 +23,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/klog/v2/textlogger"
+	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -96,12 +97,26 @@ func (r *RoleRequestReconciler) requeueRoleRequestForReference(
 }
 
 // requeueRoleRequestForCluster is a handler.ToRequestsFunc to be used to enqueue requests for reconciliation
-// for RoleRequest to update when its own Sveltos/CAPI Cluster gets updated.
-func (r *RoleRequestReconciler) requeueRoleRequestForCluster(
+// for RoleRequest to update when its own SveltosCluster gets updated.
+func (r *RoleRequestReconciler) requeueRoleRequestForSveltosCluster(
 	ctx context.Context, o client.Object,
 ) []reconcile.Request {
 
-	cluster := o
+	return r.requeueRoleRequestForACluster(o)
+}
+
+// requeueRoleRequestForCluster is a handler.ToRequestsFunc to be used to enqueue requests for reconciliation
+// for RoleRequest to update when its own CAPI Cluster gets updated.
+func (r *RoleRequestReconciler) requeueRoleRequestForCluster(
+	ctx context.Context, cluster *clusterv1.Cluster,
+) []reconcile.Request {
+
+	return r.requeueRoleRequestForACluster(cluster)
+}
+
+func (r *RoleRequestReconciler) requeueRoleRequestForACluster(cluster client.Object,
+) []reconcile.Request {
+
 	logger := textlogger.NewLogger(textlogger.NewConfig(textlogger.Verbosity(1))).WithValues(
 		"cluster", fmt.Sprintf("%s/%s", cluster.GetNamespace(), cluster.GetName()))
 
