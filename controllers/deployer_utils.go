@@ -471,8 +471,8 @@ func deployRole(ctx context.Context, remoteConfig *rest.Config, remoteClient cli
 		return nil, err
 	}
 
-	_, _, err = deployer.ValidateObjectForUpdate(ctx, dr, policy,
-		referencedObject.GetObjectKind().GroupVersionKind().Kind, referencedObject.GetNamespace(), referencedObject.GetName())
+	_, err = deployer.ValidateObjectForUpdate(ctx, dr, policy,
+		referencedObject.GetObjectKind().GroupVersionKind().Kind, referencedObject.GetNamespace(), referencedObject.GetName(), roleRequest)
 	if err != nil {
 		return nil, err
 	}
