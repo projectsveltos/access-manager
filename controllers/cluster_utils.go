@@ -29,19 +29,19 @@ import (
 
 	"github.com/projectsveltos/libsveltos/lib/clusterproxy"
 
-	libsveltosv1alpha1 "github.com/projectsveltos/libsveltos/api/v1alpha1"
+	libsveltosv1beta1 "github.com/projectsveltos/libsveltos/api/v1beta1"
 )
 
 // getSveltosCluster returns SveltosCluster
 func getSveltosCluster(ctx context.Context, c client.Client,
-	clusterNamespace, clusterName string) (*libsveltosv1alpha1.SveltosCluster, error) {
+	clusterNamespace, clusterName string) (*libsveltosv1beta1.SveltosCluster, error) {
 
 	clusterNamespacedName := types.NamespacedName{
 		Namespace: clusterNamespace,
 		Name:      clusterName,
 	}
 
-	cluster := &libsveltosv1alpha1.SveltosCluster{}
+	cluster := &libsveltosv1beta1.SveltosCluster{}
 	if err := c.Get(ctx, clusterNamespacedName, cluster); err != nil {
 		return nil, err
 	}
@@ -67,9 +67,9 @@ func getCAPICluster(ctx context.Context, c client.Client,
 // getCluster returns the cluster associated to ClusterSummary.
 // ClusterSummary can be created for either a CAPI Cluster or a Sveltos Cluster.
 func getCluster(ctx context.Context, c client.Client,
-	clusterNamespace, clusterName string, clusterType libsveltosv1alpha1.ClusterType) (client.Object, error) {
+	clusterNamespace, clusterName string, clusterType libsveltosv1beta1.ClusterType) (client.Object, error) {
 
-	if clusterType == libsveltosv1alpha1.ClusterTypeSveltos {
+	if clusterType == libsveltosv1beta1.ClusterTypeSveltos {
 		return getSveltosCluster(ctx, c, clusterNamespace, clusterName)
 	}
 	return getCAPICluster(ctx, c, clusterNamespace, clusterName)
@@ -100,51 +100,51 @@ func isSveltosClusterPaused(ctx context.Context, c client.Client,
 }
 
 func isClusterPaused(ctx context.Context, c client.Client,
-	clusterNamespace, clusterName string, clusterType libsveltosv1alpha1.ClusterType) (bool, error) {
+	clusterNamespace, clusterName string, clusterType libsveltosv1beta1.ClusterType) (bool, error) {
 
-	if clusterType == libsveltosv1alpha1.ClusterTypeSveltos {
+	if clusterType == libsveltosv1beta1.ClusterTypeSveltos {
 		return isSveltosClusterPaused(ctx, c, clusterNamespace, clusterName)
 	}
 	return isCAPIClusterPaused(ctx, c, clusterNamespace, clusterName)
 }
 
 func getKubernetesRestConfig(ctx context.Context, c client.Client, clusterNamespace, clusterName string,
-	clusterType libsveltosv1alpha1.ClusterType, logger logr.Logger) (*rest.Config, error) {
+	clusterType libsveltosv1beta1.ClusterType, logger logr.Logger) (*rest.Config, error) {
 
-	if clusterType == libsveltosv1alpha1.ClusterTypeSveltos {
+	if clusterType == libsveltosv1beta1.ClusterTypeSveltos {
 		return clusterproxy.GetSveltosKubernetesRestConfig(ctx, logger, c, clusterNamespace, clusterName)
 	}
 	return clusterproxy.GetCAPIKubernetesRestConfig(ctx, logger, c, clusterNamespace, clusterName)
 }
 
 func getKubernetesClient(ctx context.Context, c client.Client, s *runtime.Scheme,
-	clusterNamespace, clusterName string, clusterType libsveltosv1alpha1.ClusterType, logger logr.Logger) (client.Client, error) {
+	clusterNamespace, clusterName string, clusterType libsveltosv1beta1.ClusterType, logger logr.Logger) (client.Client, error) {
 
-	if clusterType == libsveltosv1alpha1.ClusterTypeSveltos {
+	if clusterType == libsveltosv1beta1.ClusterTypeSveltos {
 		return clusterproxy.GetSveltosKubernetesClient(ctx, logger, c, s, clusterNamespace, clusterName)
 	}
 	return clusterproxy.GetCAPIKubernetesClient(ctx, logger, c, s, clusterNamespace, clusterName)
 }
 
-func getClusterType(cluster *corev1.ObjectReference) libsveltosv1alpha1.ClusterType {
+func getClusterType(cluster *corev1.ObjectReference) libsveltosv1beta1.ClusterType {
 	// TODO: remove this
-	if cluster.APIVersion != libsveltosv1alpha1.GroupVersion.String() &&
+	if cluster.APIVersion != libsveltosv1beta1.GroupVersion.String() &&
 		cluster.APIVersion != clusterv1.GroupVersion.String() {
 
 		panic(1)
 	}
 
-	clusterType := libsveltosv1alpha1.ClusterTypeCapi
-	if cluster.APIVersion == libsveltosv1alpha1.GroupVersion.String() {
-		clusterType = libsveltosv1alpha1.ClusterTypeSveltos
+	clusterType := libsveltosv1beta1.ClusterTypeCapi
+	if cluster.APIVersion == libsveltosv1beta1.GroupVersion.String() {
+		clusterType = libsveltosv1beta1.ClusterTypeSveltos
 	}
 	return clusterType
 }
 
 func getSecretData(ctx context.Context, c client.Client, clusterNamespace, clusterName string,
-	clusterType libsveltosv1alpha1.ClusterType, logger logr.Logger) ([]byte, error) {
+	clusterType libsveltosv1beta1.ClusterType, logger logr.Logger) ([]byte, error) {
 
-	if clusterType == libsveltosv1alpha1.ClusterTypeSveltos {
+	if clusterType == libsveltosv1beta1.ClusterTypeSveltos {
 		return clusterproxy.GetSveltosSecretData(ctx, logger, c, clusterNamespace, clusterName)
 	}
 	return clusterproxy.GetCAPISecretData(ctx, logger, c, clusterNamespace, clusterName)

@@ -39,7 +39,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/projectsveltos/access-manager/pkg/scope"
-	libsveltosv1alpha1 "github.com/projectsveltos/libsveltos/api/v1alpha1"
+	libsveltosv1beta1 "github.com/projectsveltos/libsveltos/api/v1beta1"
 	logs "github.com/projectsveltos/libsveltos/lib/logsettings"
 	libsveltosutils "github.com/projectsveltos/libsveltos/lib/utils"
 )
@@ -81,7 +81,7 @@ func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	logger.V(logs.LogInfo).Info("Reconciling")
 
 	// Fecth the AccessRequest instance
-	accessRequest := &libsveltosv1alpha1.AccessRequest{}
+	accessRequest := &libsveltosv1beta1.AccessRequest{}
 	if err := r.Get(ctx, req.NamespacedName, accessRequest); err != nil {
 		if apierrors.IsNotFound(err) {
 			return reconcile.Result{}, nil
@@ -146,7 +146,7 @@ func (r *AccessRequestReconciler) reconcileDelete(
 
 	// Cluster is deleted so remove the finalizer.
 	logger.Info("Removing finalizer")
-	controllerutil.RemoveFinalizer(accessRequestScope.AccessRequest, libsveltosv1alpha1.AccessRequestFinalizer)
+	controllerutil.RemoveFinalizer(accessRequestScope.AccessRequest, libsveltosv1beta1.AccessRequestFinalizer)
 
 	logger.V(logs.LogInfo).Info("Reconcile delete success")
 	return nil
@@ -160,7 +160,7 @@ func (r *AccessRequestReconciler) reconcileNormal(
 	logger := accessRequestScope.Logger
 	logger.V(logs.LogInfo).Info("Reconciling AccessRequest")
 
-	if !controllerutil.ContainsFinalizer(accessRequestScope.AccessRequest, libsveltosv1alpha1.AccessRequestFinalizer) {
+	if !controllerutil.ContainsFinalizer(accessRequestScope.AccessRequest, libsveltosv1beta1.AccessRequestFinalizer) {
 		if err := r.addFinalizer(ctx, accessRequestScope); err != nil {
 			logger.V(logs.LogDebug).Info("failed to update finalizer")
 			return reconcile.Result{}, err
@@ -182,7 +182,7 @@ func (r *AccessRequestReconciler) reconcileNormal(
 // SetupWithManager sets up the controller with the Manager.
 func (r *AccessRequestReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	_, err := ctrl.NewControllerManagedBy(mgr).
-		For(&libsveltosv1alpha1.AccessRequest{}).
+		For(&libsveltosv1beta1.AccessRequest{}).
 		WithEventFilter(IfNewDeletedOrSpecChange(mgr.GetLogger())).
 		WithOptions(controller.Options{
 			MaxConcurrentReconciles: r.ConcurrentReconciles,
@@ -196,7 +196,7 @@ func (r *AccessRequestReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 func (r *AccessRequestReconciler) addFinalizer(ctx context.Context, accessRequestScope *scope.AccessRequestScope) error {
 	// If the SveltosCluster doesn't have our finalizer, add it.
-	controllerutil.AddFinalizer(accessRequestScope.AccessRequest, libsveltosv1alpha1.AccessRequestFinalizer)
+	controllerutil.AddFinalizer(accessRequestScope.AccessRequest, libsveltosv1beta1.AccessRequestFinalizer)
 	// Register the finalizer immediately to avoid orphaning accessRequest resources on delete
 	if err := accessRequestScope.PatchObject(ctx); err != nil {
 		accessRequestScope.Error(err, "Failed to add finalizer")
@@ -317,7 +317,7 @@ func (r *AccessRequestReconciler) createServiceAccount(ctx context.Context, acce
 		if apierrors.IsNotFound(err) {
 			sa.Namespace = ar.Spec.Namespace
 			sa.Name = ar.Spec.Name
-			sa.Labels = map[string]string{libsveltosv1alpha1.AccessRequestNameLabel: ar.Name}
+			sa.Labels = map[string]string{libsveltosv1beta1.AccessRequestNameLabel: ar.Name}
 			return r.Create(ctx, sa)
 		}
 	}
@@ -333,7 +333,7 @@ func (r *AccessRequestReconciler) createRoleAndRoleBinding(ctx context.Context,
 
 	var rules []rbacv1.PolicyRule
 	switch ar.Spec.Type {
-	case libsveltosv1alpha1.SveltosAgentRequest:
+	case libsveltosv1beta1.SveltosAgentRequest:
 		rules = r.getClassifierPolicyRules()
 	default:
 		return fmt.Errorf("unknow type %s", ar.Spec.Type)
@@ -364,7 +364,7 @@ func (r *AccessRequestReconciler) createRole(ctx context.Context,
 		if apierrors.IsNotFound(err) {
 			role.Namespace = ar.Spec.Namespace
 			role.Name = ar.Spec.Name
-			role.Labels = map[string]string{libsveltosv1alpha1.AccessRequestNameLabel: ar.Name}
+			role.Labels = map[string]string{libsveltosv1beta1.AccessRequestNameLabel: ar.Name}
 			role.Rules = rules
 			return r.Create(ctx, role)
 		}
@@ -373,7 +373,7 @@ func (r *AccessRequestReconciler) createRole(ctx context.Context,
 	role.Namespace = ar.Spec.Namespace
 	role.Name = ar.Spec.Name
 	role.Rules = rules
-	role.Labels = map[string]string{libsveltosv1alpha1.AccessRequestNameLabel: ar.Name}
+	role.Labels = map[string]string{libsveltosv1beta1.AccessRequestNameLabel: ar.Name}
 	return r.Update(ctx, role)
 }
 
@@ -389,7 +389,7 @@ func (r *AccessRequestReconciler) createRoleBinding(ctx context.Context,
 		if apierrors.IsNotFound(err) {
 			roleBinding.Namespace = ar.Spec.Namespace
 			roleBinding.Name = ar.Spec.Name
-			roleBinding.Labels = map[string]string{libsveltosv1alpha1.AccessRequestNameLabel: ar.Name}
+			roleBinding.Labels = map[string]string{libsveltosv1beta1.AccessRequestNameLabel: ar.Name}
 			roleBinding.RoleRef = rbacv1.RoleRef{
 				APIGroup: "rbac.authorization.k8s.io",
 				Kind:     "Role",
@@ -441,7 +441,7 @@ func (r *AccessRequestReconciler) updateSecret(ctx context.Context,
 		if apierrors.IsNotFound(err) {
 			secret.Namespace = ar.Spec.Namespace
 			secret.Name = ar.Spec.Name
-			secret.Labels = map[string]string{libsveltosv1alpha1.AccessRequestNameLabel: ar.Name}
+			secret.Labels = map[string]string{libsveltosv1beta1.AccessRequestNameLabel: ar.Name}
 			secret.Data = map[string][]byte{"data": kubeconfig}
 			return r.Create(ctx, secret)
 		}

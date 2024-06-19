@@ -32,7 +32,7 @@ import (
 
 	"github.com/projectsveltos/access-manager/controllers"
 	"github.com/projectsveltos/access-manager/pkg/scope"
-	libsveltosv1alpha1 "github.com/projectsveltos/libsveltos/api/v1alpha1"
+	libsveltosv1beta1 "github.com/projectsveltos/libsveltos/api/v1beta1"
 )
 
 const (
@@ -42,7 +42,7 @@ const (
 )
 
 var _ = Describe("AccessRequestReconciler", func() {
-	var accessRequest *libsveltosv1alpha1.AccessRequest
+	var accessRequest *libsveltosv1beta1.AccessRequest
 	var reconciler *controllers.AccessRequestReconciler
 	var arScope *scope.AccessRequestScope
 
@@ -93,7 +93,7 @@ var _ = Describe("AccessRequestReconciler", func() {
 		Expect(currentSecret.Data).ToNot(BeNil())
 		Expect(reflect.DeepEqual(currentSecret.Data["data"], kubeconfig)).To(BeTrue())
 		Expect(currentSecret.Labels).ToNot(BeNil())
-		_, ok := currentSecret.Labels[libsveltosv1alpha1.AccessRequestNameLabel]
+		_, ok := currentSecret.Labels[libsveltosv1beta1.AccessRequestNameLabel]
 		Expect(ok).To(BeTrue())
 	})
 
@@ -257,14 +257,14 @@ var _ = Describe("AccessRequestReconciler", func() {
 
 		// Eventual loop so testEnv Cache is synced
 		Eventually(func() bool {
-			ar := &libsveltosv1alpha1.AccessRequest{}
+			ar := &libsveltosv1beta1.AccessRequest{}
 			err := testEnv.Get(context.TODO(),
 				types.NamespacedName{Namespace: accessRequest.Namespace, Name: accessRequest.Name},
 				ar)
 			if err != nil {
 				return false
 			}
-			return controllerutil.ContainsFinalizer(ar, libsveltosv1alpha1.AccessRequestFinalizer)
+			return controllerutil.ContainsFinalizer(ar, libsveltosv1beta1.AccessRequestFinalizer)
 		}, timeout, pollingInterval).Should(BeTrue())
 	})
 

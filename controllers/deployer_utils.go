@@ -37,7 +37,7 @@ import (
 	apiv1 "k8s.io/client-go/tools/clientcmd/api/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	libsveltosv1alpha1 "github.com/projectsveltos/libsveltos/api/v1alpha1"
+	libsveltosv1beta1 "github.com/projectsveltos/libsveltos/api/v1beta1"
 	"github.com/projectsveltos/libsveltos/lib/deployer"
 	logs "github.com/projectsveltos/libsveltos/lib/logsettings"
 	"github.com/projectsveltos/libsveltos/lib/roles"
@@ -59,7 +59,7 @@ const (
 // createServiceAccountInManagedCluster create a ServiceAccount with passed in name in the
 // projectsveltos namespace
 func createServiceAccountInManagedCluster(ctx context.Context, remoteClient client.Client,
-	roleRequest *libsveltosv1alpha1.RoleRequest) error {
+	roleRequest *libsveltosv1beta1.RoleRequest) error {
 
 	err := createNamespaceInManagedCluster(ctx, remoteClient, serviceAccountNamespace)
 	if err != nil {
@@ -76,7 +76,7 @@ func createServiceAccountInManagedCluster(ctx context.Context, remoteClient clie
 		if apierrors.IsNotFound(err) {
 			serviceAccount.Namespace = serviceAccountNamespace
 			serviceAccount.Name = saName
-			serviceAccount.Labels = map[string]string{libsveltosv1alpha1.RoleRequestLabel: "ok"}
+			serviceAccount.Labels = map[string]string{libsveltosv1beta1.RoleRequestLabel: "ok"}
 			deployer.AddOwnerReference(serviceAccount, roleRequest)
 			return remoteClient.Create(ctx, serviceAccount)
 		}
@@ -112,7 +112,7 @@ func getServiceAccountToken(ctx context.Context, config *rest.Config, saName str
 
 func createServiceAccountSecretForCluster(ctx context.Context, config *rest.Config, c client.Client,
 	clusterNamespace, clusterName, serviceAccountNamespace, serviceAccountName string,
-	clusterType libsveltosv1alpha1.ClusterType, roleRequest *libsveltosv1alpha1.RoleRequest, logger logr.Logger) error {
+	clusterType libsveltosv1beta1.ClusterType, roleRequest *libsveltosv1beta1.RoleRequest, logger logr.Logger) error {
 
 	logger = logger.WithValues("serviceaccount", fmt.Sprintf("%s/%s", serviceAccountNamespace, serviceAccountName))
 	logger = logger.WithValues("cluster", fmt.Sprintf("%s/%s", clusterNamespace, clusterName))
@@ -174,9 +174,9 @@ func createServiceAccountSecretForCluster(ctx context.Context, config *rest.Conf
 		clusterType, kubeconfig, tokenStatus, logger)
 }
 
-func createSecretWithKubeconfig(ctx context.Context, c client.Client, roleRequest *libsveltosv1alpha1.RoleRequest,
+func createSecretWithKubeconfig(ctx context.Context, c client.Client, roleRequest *libsveltosv1beta1.RoleRequest,
 	clusterNamespace, clusterName string,
-	clusterType libsveltosv1alpha1.ClusterType, kubeconfig []byte,
+	clusterType libsveltosv1beta1.ClusterType, kubeconfig []byte,
 	tokenStatus *authenticationv1.TokenRequestStatus, logger logr.Logger) error {
 
 	secret, err := libsveltosroles.CreateSecret(ctx, c, clusterNamespace, clusterName,
@@ -198,8 +198,8 @@ func createSecretWithKubeconfig(ctx context.Context, c client.Client, roleReques
 	return c.Update(context.TODO(), secret)
 }
 
-func getSecretWithKubeconfig(ctx context.Context, c client.Client, roleRequest *libsveltosv1alpha1.RoleRequest,
-	clusterNamespace, clusterName string, clusterType libsveltosv1alpha1.ClusterType,
+func getSecretWithKubeconfig(ctx context.Context, c client.Client, roleRequest *libsveltosv1beta1.RoleRequest,
+	clusterNamespace, clusterName string, clusterType libsveltosv1beta1.ClusterType,
 	logger logr.Logger) (*corev1.Secret, error) {
 
 	secret, err := libsveltosroles.GetSecret(ctx, c, clusterNamespace, clusterName,
@@ -238,8 +238,8 @@ func getCurrentExpirationTimeFromSecret(secret *corev1.Secret, logger logr.Logge
 	return &t, nil
 }
 
-func getCurrentExpirationTime(ctx context.Context, c client.Client, roleRequest *libsveltosv1alpha1.RoleRequest,
-	clusterNamespace, clusterName string, clusterType libsveltosv1alpha1.ClusterType,
+func getCurrentExpirationTime(ctx context.Context, c client.Client, roleRequest *libsveltosv1beta1.RoleRequest,
+	clusterNamespace, clusterName string, clusterType libsveltosv1beta1.ClusterType,
 	logger logr.Logger) (*metav1.Time, error) {
 
 	secret, err := libsveltosroles.GetSecret(ctx, c, clusterNamespace, clusterName,
@@ -254,8 +254,8 @@ func getCurrentExpirationTime(ctx context.Context, c client.Client, roleRequest 
 	return getCurrentExpirationTimeFromSecret(secret, logger)
 }
 
-func isTimeExpired(ctx context.Context, c client.Client, roleRequest *libsveltosv1alpha1.RoleRequest,
-	clusterNamespace, clusterName string, clusterType libsveltosv1alpha1.ClusterType,
+func isTimeExpired(ctx context.Context, c client.Client, roleRequest *libsveltosv1beta1.RoleRequest,
+	clusterNamespace, clusterName string, clusterType libsveltosv1beta1.ClusterType,
 	logger logr.Logger) (bool, error) {
 
 	expirationTime, err := getCurrentExpirationTime(ctx, c, roleRequest, clusterNamespace, clusterName,
@@ -301,7 +301,7 @@ func createNamespaceInManagedCluster(ctx context.Context, remoteClient client.Cl
 
 // collectReferencedObjects collects all referenced configMaps/secrets in control cluster
 func collectReferencedObjects(ctx context.Context, c client.Client, clusterNamespace string,
-	references []libsveltosv1alpha1.PolicyRef, logger logr.Logger) ([]client.Object, error) {
+	references []libsveltosv1beta1.PolicyRef, logger logr.Logger) ([]client.Object, error) {
 
 	objects := make([]client.Object, 0)
 	for i := range references {
@@ -309,7 +309,7 @@ func collectReferencedObjects(ctx context.Context, c client.Client, clusterNames
 		var object client.Object
 		reference := &references[i]
 		namespace := getReferenceResourceNamespace(clusterNamespace, reference.Namespace)
-		if reference.Kind == string(libsveltosv1alpha1.ConfigMapReferencedResourceKind) {
+		if reference.Kind == string(libsveltosv1beta1.ConfigMapReferencedResourceKind) {
 			object, err = getConfigMap(ctx, c,
 				types.NamespacedName{Namespace: namespace, Name: reference.Name})
 		} else {
@@ -354,15 +354,15 @@ func getSecret(ctx context.Context, c client.Client, secretName types.Namespaced
 	if err := c.Get(ctx, secretKey, secret); err != nil {
 		return nil, err
 	}
-	if secret.Type != libsveltosv1alpha1.ClusterProfileSecretType {
-		return nil, libsveltosv1alpha1.ErrSecretTypeNotSupported
+	if secret.Type != libsveltosv1beta1.ClusterProfileSecretType {
+		return nil, libsveltosv1beta1.ErrSecretTypeNotSupported
 	}
 
 	return secret, nil
 }
 
 func deployReferencedResourceInManagedCluster(ctx context.Context, remoteRestConfig *rest.Config, remoteClient client.Client,
-	referencedResource client.Object, roleRequest *libsveltosv1alpha1.RoleRequest, logger logr.Logger,
+	referencedResource client.Object, roleRequest *libsveltosv1beta1.RoleRequest, logger logr.Logger,
 ) ([]corev1.ObjectReference, error) {
 
 	var deployedResources []corev1.ObjectReference
@@ -385,7 +385,7 @@ func deployReferencedResourceInManagedCluster(ctx context.Context, remoteRestCon
 // deployContentOfConfigMap deploys ClusterRoles/Roles contained in a ConfigMap.
 // Returns an error if one occurred.
 func deployContentOfConfigMap(ctx context.Context, remoteConfig *rest.Config, remoteClient client.Client,
-	configMap *corev1.ConfigMap, roleRequest *libsveltosv1alpha1.RoleRequest, logger logr.Logger,
+	configMap *corev1.ConfigMap, roleRequest *libsveltosv1beta1.RoleRequest, logger logr.Logger,
 ) ([]corev1.ObjectReference, error) {
 
 	return deployContent(ctx, remoteConfig, remoteClient, configMap, configMap.Data, roleRequest, logger)
@@ -396,7 +396,7 @@ func deployContentOfConfigMap(ctx context.Context, remoteConfig *rest.Config, re
 // the policies deployed in the form of kind.group:namespace:name for namespaced policies
 // and kind.group::name for cluster wide policies.
 func deployContentOfSecret(ctx context.Context, remoteConfig *rest.Config, remoteClient client.Client,
-	secret *corev1.Secret, roleRequest *libsveltosv1alpha1.RoleRequest, logger logr.Logger,
+	secret *corev1.Secret, roleRequest *libsveltosv1beta1.RoleRequest, logger logr.Logger,
 ) ([]corev1.ObjectReference, error) {
 
 	data := make(map[string]string)
@@ -412,7 +412,7 @@ func deployContentOfSecret(ctx context.Context, remoteConfig *rest.Config, remot
 // or multiple policies separated by '---'
 // Returns an error if one occurred.
 func deployContent(ctx context.Context, remoteConfig *rest.Config, remoteClient client.Client,
-	referencedObject client.Object, data map[string]string, roleRequest *libsveltosv1alpha1.RoleRequest,
+	referencedObject client.Object, data map[string]string, roleRequest *libsveltosv1beta1.RoleRequest,
 	logger logr.Logger) ([]corev1.ObjectReference, error) {
 
 	deployedPolicies := make([]corev1.ObjectReference, 0)
@@ -445,7 +445,7 @@ func deployContent(ctx context.Context, remoteConfig *rest.Config, remoteClient 
 }
 
 func deployRole(ctx context.Context, remoteConfig *rest.Config, remoteClient client.Client,
-	policy *unstructured.Unstructured, referencedObject client.Object, roleRequest *libsveltosv1alpha1.RoleRequest,
+	policy *unstructured.Unstructured, referencedObject client.Object, roleRequest *libsveltosv1beta1.RoleRequest,
 	logger logr.Logger) ([]corev1.ObjectReference, error) {
 
 	// Following labels are added to indentify ConfigMap/Secret causing this resource to be deployed.
@@ -455,7 +455,7 @@ func deployRole(ctx context.Context, remoteConfig *rest.Config, remoteClient cli
 	addLabel(policy, deployer.ReferenceNameLabel, referencedObject.GetName())
 	addLabel(policy, deployer.ReferenceNamespaceLabel, referencedObject.GetNamespace())
 
-	addLabel(policy, libsveltosv1alpha1.RoleRequestLabel, "ok")
+	addLabel(policy, libsveltosv1beta1.RoleRequestLabel, "ok")
 
 	// If policy is namespaced, create namespace if not already existing
 	err := createNamespaceInManagedCluster(ctx, remoteClient, policy.GetNamespace())
@@ -503,7 +503,7 @@ func deployRole(ctx context.Context, remoteConfig *rest.Config, remoteClient cli
 }
 
 func deployRoleBinding(ctx context.Context, remoteClient client.Client,
-	role *unstructured.Unstructured, roleRequest *libsveltosv1alpha1.RoleRequest,
+	role *unstructured.Unstructured, roleRequest *libsveltosv1beta1.RoleRequest,
 	logger logr.Logger) (*corev1.ObjectReference, error) {
 
 	saName := roles.GetServiceAccountNameInManagedCluster(roleRequest.Spec.ServiceAccountNamespace,
@@ -513,7 +513,7 @@ func deployRoleBinding(ctx context.Context, remoteClient client.Client,
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: role.GetNamespace(),
 			Name:      role.GetName(),
-			Labels:    map[string]string{libsveltosv1alpha1.RoleRequestLabel: "ok"},
+			Labels:    map[string]string{libsveltosv1beta1.RoleRequestLabel: "ok"},
 		},
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
@@ -548,13 +548,13 @@ func deployRoleBinding(ctx context.Context, remoteClient client.Client,
 
 	currentRoleBinding.RoleRef = roleBinding.RoleRef
 	currentRoleBinding.Subjects = roleBinding.Subjects
-	currentRoleBinding.Labels = map[string]string{libsveltosv1alpha1.RoleRequestLabel: "ok"}
+	currentRoleBinding.Labels = map[string]string{libsveltosv1beta1.RoleRequestLabel: "ok"}
 	logger.V(logs.LogDebug).Info("updating roleBinding")
 	return roleBindingRef, remoteClient.Update(ctx, currentRoleBinding)
 }
 
 func deployClusterRoleBinding(ctx context.Context, remoteClient client.Client,
-	clusterRole *unstructured.Unstructured, roleRequest *libsveltosv1alpha1.RoleRequest,
+	clusterRole *unstructured.Unstructured, roleRequest *libsveltosv1beta1.RoleRequest,
 	logger logr.Logger) (*corev1.ObjectReference, error) {
 
 	saName := roles.GetServiceAccountNameInManagedCluster(roleRequest.Spec.ServiceAccountNamespace,
@@ -563,7 +563,7 @@ func deployClusterRoleBinding(ctx context.Context, remoteClient client.Client,
 	clusterRoleBinding := rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   clusterRole.GetName(),
-			Labels: map[string]string{libsveltosv1alpha1.RoleRequestLabel: "ok"},
+			Labels: map[string]string{libsveltosv1beta1.RoleRequestLabel: "ok"},
 		},
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
@@ -599,7 +599,7 @@ func deployClusterRoleBinding(ctx context.Context, remoteClient client.Client,
 
 	currentClusterRoleBinding.RoleRef = clusterRoleBinding.RoleRef
 	currentClusterRoleBinding.Subjects = clusterRoleBinding.Subjects
-	currentClusterRoleBinding.Labels = map[string]string{libsveltosv1alpha1.RoleRequestLabel: "ok"}
+	currentClusterRoleBinding.Labels = map[string]string{libsveltosv1beta1.RoleRequestLabel: "ok"}
 	logger.V(logs.LogDebug).Info("updating clusteRoleBinding")
 	return clusterRoleBindingRef, remoteClient.Update(ctx, currentClusterRoleBinding)
 }

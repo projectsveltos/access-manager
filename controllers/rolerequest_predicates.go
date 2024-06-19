@@ -26,7 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	libsveltosv1alpha1 "github.com/projectsveltos/libsveltos/api/v1alpha1"
+	libsveltosv1beta1 "github.com/projectsveltos/libsveltos/api/v1beta1"
 	logs "github.com/projectsveltos/libsveltos/lib/logsettings"
 )
 
@@ -35,8 +35,8 @@ import (
 func SveltosClusterPredicates(logger logr.Logger) predicate.Funcs {
 	return predicate.Funcs{
 		UpdateFunc: func(e event.UpdateEvent) bool {
-			newCluster := e.ObjectNew.(*libsveltosv1alpha1.SveltosCluster)
-			oldCluster := e.ObjectOld.(*libsveltosv1alpha1.SveltosCluster)
+			newCluster := e.ObjectNew.(*libsveltosv1beta1.SveltosCluster)
+			oldCluster := e.ObjectOld.(*libsveltosv1beta1.SveltosCluster)
 			log := logger.WithValues("predicate", "updateEvent",
 				"namespace", newCluster.Namespace,
 				"cluster", newCluster.Name,
@@ -73,7 +73,7 @@ func SveltosClusterPredicates(logger logr.Logger) predicate.Funcs {
 			return false
 		},
 		CreateFunc: func(e event.CreateEvent) bool {
-			cluster := e.Object.(*libsveltosv1alpha1.SveltosCluster)
+			cluster := e.Object.(*libsveltosv1beta1.SveltosCluster)
 			log := logger.WithValues("predicate", "createEvent",
 				"namespace", cluster.Namespace,
 				"cluster", cluster.Name,

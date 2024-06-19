@@ -25,7 +25,7 @@ ARCH ?= amd64
 OS ?= $(shell uname -s | tr A-Z a-z)
 K8S_LATEST_VER ?= $(shell curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)
 export CONTROLLER_IMG ?= $(REGISTRY)/$(IMAGE_NAME)
-TAG ?= main
+TAG ?= dev
 
 .PHONY: all
 all: build
@@ -68,12 +68,12 @@ KUBECTL := $(TOOLS_BIN_DIR)/kubectl
 CLUSTERCTL := $(TOOLS_BIN_DIR)/clusterctl
 
 GOLANGCI_LINT_VERSION := "v1.57.2"
-CLUSTERCTL_VERSION := "v1.7.2"
+CLUSTERCTL_VERSION := "v1.7.3"
 
-KUSTOMIZE_VER := v4.5.2
+KUSTOMIZE_VER := v5.3.0
 KUSTOMIZE_BIN := kustomize
 KUSTOMIZE := $(abspath $(TOOLS_BIN_DIR)/$(KUSTOMIZE_BIN)-$(KUSTOMIZE_VER))
-KUSTOMIZE_PKG := sigs.k8s.io/kustomize/kustomize/v4
+KUSTOMIZE_PKG := sigs.k8s.io/kustomize/kustomize/v5
 $(KUSTOMIZE): # Build kustomize from tools folder.
 	CGO_ENABLED=0 GOBIN=$(TOOLS_BIN_DIR) $(GO_INSTALL) $(KUSTOMIZE_PKG) $(KUSTOMIZE_BIN) $(KUSTOMIZE_VER)
 
@@ -257,10 +257,10 @@ deploy-projectsveltos: $(KUSTOMIZE)
 	$(MAKE) load-image
 
 	@echo 'Install libsveltos CRDs'
-	$(KUBECTL) apply -f https://raw.githubusercontent.com/projectsveltos/libsveltos/$(TAG)/config/crd/bases/lib.projectsveltos.io_debuggingconfigurations.yaml
-	$(KUBECTL) apply -f https://raw.githubusercontent.com/projectsveltos/libsveltos/$(TAG)/config/crd/bases/lib.projectsveltos.io_accessrequests.yaml
-	$(KUBECTL) apply -f https://raw.githubusercontent.com/projectsveltos/libsveltos/$(TAG)/config/crd/bases/lib.projectsveltos.io_rolerequests.yaml
-	$(KUBECTL) apply -f https://raw.githubusercontent.com/projectsveltos/libsveltos/$(TAG)/config/crd/bases/lib.projectsveltos.io_sveltosclusters.yaml
+	$(KUBECTL) apply -f https://raw.githubusercontent.com/projectsveltos/libsveltos/$(TAG)/manifests/apiextensions.k8s.io_v1_customresourcedefinition_debuggingconfigurations.lib.projectsveltos.io.yaml
+	$(KUBECTL) apply -f https://raw.githubusercontent.com/projectsveltos/libsveltos/$(TAG)/manifests/apiextensions.k8s.io_v1_customresourcedefinition_accessrequests.lib.projectsveltos.io.yaml
+	$(KUBECTL) apply -f https://raw.githubusercontent.com/projectsveltos/libsveltos/$(TAG)/manifests/apiextensions.k8s.io_v1_customresourcedefinition_rolerequests.lib.projectsveltos.io.yaml
+	$(KUBECTL) apply -f https://raw.githubusercontent.com/projectsveltos/libsveltos/$(TAG)/manifests/apiextensions.k8s.io_v1_customresourcedefinition_sveltosclusters.lib.projectsveltos.io.yaml
 
 	# Install projectsveltos access-manager components
 	@echo 'Install projectsveltos access-manager components'
@@ -269,6 +269,13 @@ deploy-projectsveltos: $(KUSTOMIZE)
 
 	@echo "Waiting for projectsveltos access-manager to be available..."
 	$(KUBECTL) wait --for=condition=Available deployment/access-manager -n projectsveltos --timeout=$(TIMEOUT)
+
+	@echo "Install sveltos conversion webhook"
+	$(KUBECTL) apply -f  https://raw.githubusercontent.com/projectsveltos/conversion-webhook/$(TAG)/manifest/manifest.yaml
+
+	@echo "Waiting for projectsveltos conversion webhook to be available..."
+	$(KUBECTL) wait --for=condition=Available deployment/conversion-webhook -n projectsveltos --timeout=$(TIMEOUT)
+
 
 set-manifest-image:
 	$(info Updating kustomize image patch file for manager resource)
