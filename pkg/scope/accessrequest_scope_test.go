@@ -27,7 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/projectsveltos/access-manager/pkg/scope"
-	libsveltosv1alpha1 "github.com/projectsveltos/libsveltos/api/v1alpha1"
+	libsveltosv1beta1 "github.com/projectsveltos/libsveltos/api/v1beta1"
 )
 
 const (
@@ -37,14 +37,14 @@ const (
 )
 
 var _ = Describe("AccessRequestScope", func() {
-	var accessRequest *libsveltosv1alpha1.AccessRequest
+	var accessRequest *libsveltosv1beta1.AccessRequest
 	var c client.Client
 	var logger logr.Logger
 
 	BeforeEach(func() {
 		logger = textlogger.NewLogger(textlogger.NewConfig(textlogger.Verbosity(1)))
 
-		accessRequest = &libsveltosv1alpha1.AccessRequest{
+		accessRequest = &libsveltosv1beta1.AccessRequest{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: classifierNamePrefix + randomString(),
 			},

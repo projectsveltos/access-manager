@@ -22,7 +22,7 @@ import (
 
 	"github.com/go-logr/logr"
 
-	libsveltosv1alpha1 "github.com/projectsveltos/libsveltos/api/v1alpha1"
+	libsveltosv1beta1 "github.com/projectsveltos/libsveltos/api/v1beta1"
 	"github.com/projectsveltos/libsveltos/lib/deployer"
 )
 
@@ -31,7 +31,7 @@ var (
 )
 
 func RegisterFeatures(d deployer.DeployerInterface, setupLog logr.Logger) {
-	err := d.RegisterFeatureID(libsveltosv1alpha1.FeatureRoleRequest)
+	err := d.RegisterFeatureID(libsveltosv1beta1.FeatureRoleRequest)
 	if err != nil {
 		setupLog.Error(err, "failed to register feature FeatureRoleRequest")
 		os.Exit(1)
@@ -43,7 +43,7 @@ func RegisterFeatures(d deployer.DeployerInterface, setupLog logr.Logger) {
 func creatFeatureHandlerMaps() {
 	featuresHandlers = make(map[string]feature)
 
-	featuresHandlers[libsveltosv1alpha1.FeatureRoleRequest] = feature{id: libsveltosv1alpha1.FeatureRoleRequest,
+	featuresHandlers[libsveltosv1beta1.FeatureRoleRequest] = feature{id: libsveltosv1beta1.FeatureRoleRequest,
 		currentHash: roleRequestHash, deploy: deployRoleRequestInCluster, undeploy: undeployRoleRequestFromCluster}
 }
 

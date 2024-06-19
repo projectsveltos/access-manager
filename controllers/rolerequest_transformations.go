@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/klog/v2/textlogger"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
@@ -28,7 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	libsveltosv1alpha1 "github.com/projectsveltos/libsveltos/api/v1alpha1"
+	libsveltosv1beta1 "github.com/projectsveltos/libsveltos/api/v1beta1"
 	logs "github.com/projectsveltos/libsveltos/lib/logsettings"
 )
 
@@ -59,14 +60,14 @@ func (r *RoleRequestReconciler) requeueRoleRequestForReference(
 		case *corev1.ConfigMap:
 			key = corev1.ObjectReference{
 				APIVersion: corev1.SchemeGroupVersion.String(),
-				Kind:       string(libsveltosv1alpha1.ConfigMapReferencedResourceKind),
+				Kind:       string(libsveltosv1beta1.ConfigMapReferencedResourceKind),
 				Namespace:  namespaces[i],
 				Name:       o.GetName(),
 			}
 		case *corev1.Secret:
 			key = corev1.ObjectReference{
 				APIVersion: corev1.SchemeGroupVersion.String(),
-				Kind:       string(libsveltosv1alpha1.SecretReferencedResourceKind),
+				Kind:       string(libsveltosv1beta1.SecretReferencedResourceKind),
 				Namespace:  namespaces[i],
 				Name:       o.GetName(),
 			}
@@ -145,13 +146,14 @@ func (r *RoleRequestReconciler) requeueRoleRequestForACluster(cluster client.Obj
 	// matching the Cluster
 	for k := range r.RoleRequests {
 		clusterProfileSelector := r.RoleRequests[k]
-		parsedSelector, err := labels.Parse(string(clusterProfileSelector))
+
+		clusterSelector, err := metav1.LabelSelectorAsSelector(&clusterProfileSelector.LabelSelector)
 		if err != nil {
-			// When clusterSelector is fixed, this RoleRequest instance will
-			// be reconciled
+			logger.V(logs.LogInfo).Info(fmt.Sprintf("failed to convert selector %v", err))
 			continue
 		}
-		if parsedSelector.Matches(labels.Set(cluster.GetLabels())) {
+
+		if clusterSelector.Matches(labels.Set(cluster.GetLabels())) {
 			l := logger.WithValues("roleRequest", k.Name)
 			l.V(logs.LogDebug).Info("queuing roleRequest")
 			requests = append(requests, ctrl.Request{

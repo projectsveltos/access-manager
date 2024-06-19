@@ -22,17 +22,18 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/cluster-api/util/patch"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	libsveltosv1alpha1 "github.com/projectsveltos/libsveltos/api/v1alpha1"
+	libsveltosv1beta1 "github.com/projectsveltos/libsveltos/api/v1beta1"
 )
 
 // RoleRequestScopeParams defines the input parameters used to create a new RoleRequest Scope.
 type RoleRequestScopeParams struct {
 	Client         client.Client
 	Logger         logr.Logger
-	RoleRequest    *libsveltosv1alpha1.RoleRequest
+	RoleRequest    *libsveltosv1beta1.RoleRequest
 	ControllerName string
 }
 
@@ -64,7 +65,7 @@ type RoleRequestScope struct {
 	logr.Logger
 	client         client.Client
 	patchHelper    *patch.Helper
-	RoleRequest    *libsveltosv1alpha1.RoleRequest
+	RoleRequest    *libsveltosv1beta1.RoleRequest
 	controllerName string
 }
 
@@ -98,7 +99,7 @@ func (s *RoleRequestScope) SetMatchingClusterRefs(matchingClusterRefs []corev1.O
 }
 
 // SetClusterInfo sets the ClusterInfo status field
-func (s *RoleRequestScope) SetClusterInfo(clusterInfo []libsveltosv1alpha1.ClusterInfo) {
+func (s *RoleRequestScope) SetClusterInfo(clusterInfo []libsveltosv1beta1.ClusterInfo) {
 	s.RoleRequest.Status.ClusterInfo = clusterInfo
 }
 
@@ -108,6 +109,6 @@ func (s *RoleRequestScope) SetFailureMessage(failureMessage *string) {
 }
 
 // GetSelector returns the ClusterSelector
-func (s *RoleRequestScope) GetSelector() string {
-	return string(s.RoleRequest.Spec.ClusterSelector)
+func (s *RoleRequestScope) GetSelector() *metav1.LabelSelector {
+	return &s.RoleRequest.Spec.ClusterSelector.LabelSelector
 }

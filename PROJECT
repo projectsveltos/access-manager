@@ -8,10 +8,10 @@ resources:
   domain: projectsveltos.io
   group: lib
   kind: AccessRequest
-  version: v1alpha1
+  version: v1beta1
 - controller: true
   domain: projectsveltos.io
   group: lib.projectsveltos.io
   kind: RoleRequest
-  version: v1alpha1
+  version: v1beta1
 version: "3"

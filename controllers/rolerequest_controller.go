@@ -27,7 +27,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -40,7 +39,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/projectsveltos/access-manager/pkg/scope"
-	libsveltosv1alpha1 "github.com/projectsveltos/libsveltos/api/v1alpha1"
+	libsveltosv1beta1 "github.com/projectsveltos/libsveltos/api/v1beta1"
 	"github.com/projectsveltos/libsveltos/lib/clusterproxy"
 	"github.com/projectsveltos/libsveltos/lib/deployer"
 	logs "github.com/projectsveltos/libsveltos/lib/logsettings"
@@ -67,7 +66,7 @@ type RoleRequestReconciler struct {
 	Deployer             deployer.DeployerInterface
 
 	// key: RoleRequest; value RoleRequest Selector
-	RoleRequests map[corev1.ObjectReference]libsveltosv1alpha1.Selector
+	RoleRequests map[corev1.ObjectReference]libsveltosv1beta1.Selector
 
 	// use a Mutex to update Map as MaxConcurrentReconciles is higher than one
 	Mux sync.Mutex
@@ -123,7 +122,7 @@ func (r *RoleRequestReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	logger.V(logs.LogInfo).Info("Reconciling")
 
 	// Fecth the roleRequest instance
-	roleRequest := &libsveltosv1alpha1.RoleRequest{}
+	roleRequest := &libsveltosv1beta1.RoleRequest{}
 	if err := r.Get(ctx, req.NamespacedName, roleRequest); err != nil {
 		if apierrors.IsNotFound(err) {
 			return reconcile.Result{}, nil
@@ -177,7 +176,7 @@ func (r *RoleRequestReconciler) reconcileDelete(
 	logger.V(logs.LogInfo).Info("Reconciling RoleRequest delete")
 
 	// Undeploy roleRequest from all clusters where it was deployed
-	f := getHandlersForFeature(libsveltosv1alpha1.FeatureRoleRequest)
+	f := getHandlersForFeature(libsveltosv1beta1.FeatureRoleRequest)
 	err := r.undeployRoleRequest(ctx, roleRequestScope, f, logger)
 	if err != nil {
 		logger.V(logs.LogInfo).Error(err, "failed to undeploy")
@@ -210,9 +209,9 @@ func (r *RoleRequestReconciler) reconcileDelete(
 	delete(r.RoleRequests, *roleRequestInfo)
 
 	logger.V(logs.LogInfo).Info("Removing finalizer")
-	if controllerutil.ContainsFinalizer(roleRequestScope.RoleRequest, libsveltosv1alpha1.RoleRequestFinalizer) {
+	if controllerutil.ContainsFinalizer(roleRequestScope.RoleRequest, libsveltosv1beta1.RoleRequestFinalizer) {
 		if finalizersUpdated := controllerutil.RemoveFinalizer(roleRequestScope.RoleRequest,
-			libsveltosv1alpha1.RoleRequestFinalizer); !finalizersUpdated {
+			libsveltosv1beta1.RoleRequestFinalizer); !finalizersUpdated {
 			return reconcile.Result{}, fmt.Errorf("failed to remove finalizer")
 		}
 	}
@@ -229,7 +228,7 @@ func (r *RoleRequestReconciler) reconcileNormal(
 
 	logger.V(logs.LogInfo).Info("Reconciling RoleRequest")
 
-	if !controllerutil.ContainsFinalizer(roleRequestScope.RoleRequest, libsveltosv1alpha1.RoleRequestFinalizer) {
+	if !controllerutil.ContainsFinalizer(roleRequestScope.RoleRequest, libsveltosv1beta1.RoleRequestFinalizer) {
 		if err := r.addFinalizer(ctx, roleRequestScope); err != nil {
 			logger.V(logs.LogInfo).Error(err, "failed to add finalizer")
 			return reconcile.Result{}, err
@@ -247,7 +246,7 @@ func (r *RoleRequestReconciler) reconcileNormal(
 
 	r.updateMaps(roleRequestScope)
 
-	f := getHandlersForFeature(libsveltosv1alpha1.FeatureRoleRequest)
+	f := getHandlersForFeature(libsveltosv1beta1.FeatureRoleRequest)
 	if err = r.deployRoleRequest(ctx, roleRequestScope, f, logger); err != nil {
 		logger.V(logs.LogInfo).Error(err, "failed to deploy")
 		return reconcile.Result{Requeue: true, RequeueAfter: normalRequeueAfter}, nil
@@ -276,11 +275,11 @@ func (r *RoleRequestReconciler) reconcileNormal(
 // SetupWithManager sets up the controller with the Manager.
 func (r *RoleRequestReconciler) SetupWithManager(mgr ctrl.Manager) (controller.Controller, error) {
 	c, err := ctrl.NewControllerManagedBy(mgr).
-		For(&libsveltosv1alpha1.RoleRequest{}).
+		For(&libsveltosv1beta1.RoleRequest{}).
 		WithOptions(controller.Options{
 			MaxConcurrentReconciles: r.ConcurrentReconciles,
 		}).
-		Watches(&libsveltosv1alpha1.SveltosCluster{},
+		Watches(&libsveltosv1beta1.SveltosCluster{},
 			handler.EnqueueRequestsFromMapFunc(r.requeueRoleRequestForSveltosCluster),
 			builder.WithPredicates(
 				SveltosClusterPredicates(mgr.GetLogger().WithValues("predicate", "sveltosclusterpredicate")),
@@ -346,7 +345,7 @@ func (r *RoleRequestReconciler) getReferenceMapForEntry(entry *corev1.ObjectRefe
 
 func (r *RoleRequestReconciler) addFinalizer(ctx context.Context, roleRequestScope *scope.RoleRequestScope) error {
 	// If the SveltosCluster doesn't have our finalizer, add it.
-	controllerutil.AddFinalizer(roleRequestScope.RoleRequest, libsveltosv1alpha1.RoleRequestFinalizer)
+	controllerutil.AddFinalizer(roleRequestScope.RoleRequest, libsveltosv1beta1.RoleRequestFinalizer)
 	// Register the finalizer immediately to avoid orphaning rolerequest resources on delete
 	if err := roleRequestScope.PatchObject(ctx); err != nil {
 		roleRequestScope.Error(err, "Failed to add finalizer")
@@ -422,8 +421,8 @@ func (r *RoleRequestReconciler) updateReferenceMaps(roleRequestScope *scope.Role
 		tmpResource := referencedResource
 		r.getReferenceMapForEntry(&tmpResource).Insert(
 			&corev1.ObjectReference{
-				APIVersion: libsveltosv1alpha1.GroupVersion.String(),
-				Kind:       libsveltosv1alpha1.RoleRequestKind,
+				APIVersion: libsveltosv1beta1.GroupVersion.String(),
+				Kind:       libsveltosv1beta1.RoleRequestKind,
 				Name:       roleRequestScope.Name(),
 			},
 		)
@@ -434,8 +433,8 @@ func (r *RoleRequestReconciler) updateReferenceMaps(roleRequestScope *scope.Role
 		referencedResource := toBeRemoved[i]
 		r.getReferenceMapForEntry(&referencedResource).Erase(
 			&corev1.ObjectReference{
-				APIVersion: libsveltosv1alpha1.GroupVersion.String(),
-				Kind:       libsveltosv1alpha1.RoleRequestKind,
+				APIVersion: libsveltosv1beta1.GroupVersion.String(),
+				Kind:       libsveltosv1beta1.RoleRequestKind,
 				Name:       roleRequestScope.Name(),
 			},
 		)
@@ -466,17 +465,9 @@ func (r *RoleRequestReconciler) getCurrentReferences(roleRequestScope *scope.Rol
 func (r *RoleRequestReconciler) getMatchingClusters(ctx context.Context, roleRequestScope *scope.RoleRequestScope,
 	logger logr.Logger) ([]corev1.ObjectReference, error) {
 
-	var matchingCluster []corev1.ObjectReference
-	if roleRequestScope.GetSelector() != "" {
-		parsedSelector, err := labels.Parse(roleRequestScope.GetSelector())
-		if err != nil {
-			logger.V(logs.LogInfo).Info(fmt.Sprintf("failed to parse clusterSelector: %v", err))
-			return nil, err
-		}
-		matchingCluster, err = clusterproxy.GetMatchingClusters(ctx, r.Client, parsedSelector, "", logger)
-		if err != nil {
-			return nil, err
-		}
+	matchingCluster, err := clusterproxy.GetMatchingClusters(ctx, r.Client, roleRequestScope.GetSelector(), "", logger)
+	if err != nil {
+		return nil, err
 	}
 
 	return matchingCluster, nil
@@ -500,11 +491,11 @@ func (r *RoleRequestReconciler) updateClusterInfo(roleRequestScope *scope.RoleRe
 		clusterMap[getClusterID(c.Cluster)] = true
 	}
 
-	newClusterInfo := make([]libsveltosv1alpha1.ClusterInfo, 0)
+	newClusterInfo := make([]libsveltosv1beta1.ClusterInfo, 0)
 	for i := range matchingCluster {
 		c := matchingCluster[i]
 		if _, ok := clusterMap[getClusterID(c)]; !ok {
-			newClusterInfo = append(newClusterInfo, libsveltosv1alpha1.ClusterInfo{
+			newClusterInfo = append(newClusterInfo, libsveltosv1beta1.ClusterInfo{
 				Cluster: c,
 			})
 		}

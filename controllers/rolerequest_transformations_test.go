@@ -31,7 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/projectsveltos/access-manager/controllers"
-	libsveltosv1alpha1 "github.com/projectsveltos/libsveltos/api/v1alpha1"
+	libsveltosv1beta1 "github.com/projectsveltos/libsveltos/api/v1beta1"
 	libsveltosset "github.com/projectsveltos/libsveltos/lib/set"
 )
 
@@ -46,31 +46,31 @@ var _ = Describe("ClustersummaryTransformations map functions", func() {
 
 		Expect(addTypeInformationToObject(scheme, configMap)).To(Succeed())
 
-		roleRequest0 := &libsveltosv1alpha1.RoleRequest{
+		roleRequest0 := &libsveltosv1beta1.RoleRequest{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: randomString(),
 			},
-			Spec: libsveltosv1alpha1.RoleRequestSpec{
-				RoleRefs: []libsveltosv1alpha1.PolicyRef{
+			Spec: libsveltosv1beta1.RoleRequestSpec{
+				RoleRefs: []libsveltosv1beta1.PolicyRef{
 					{
 						Namespace: configMap.Namespace,
 						Name:      configMap.Name,
-						Kind:      string(libsveltosv1alpha1.ConfigMapReferencedResourceKind),
+						Kind:      string(libsveltosv1beta1.ConfigMapReferencedResourceKind),
 					},
 				},
 			},
 		}
 
-		roleRequest1 := &libsveltosv1alpha1.RoleRequest{
+		roleRequest1 := &libsveltosv1beta1.RoleRequest{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: randomString(),
 			},
-			Spec: libsveltosv1alpha1.RoleRequestSpec{
-				RoleRefs: []libsveltosv1alpha1.PolicyRef{
+			Spec: libsveltosv1beta1.RoleRequestSpec{
+				RoleRefs: []libsveltosv1beta1.PolicyRef{
 					{
 						Namespace: configMap.Namespace,
 						Name:      randomString(),
-						Kind:      string(libsveltosv1alpha1.ConfigMapReferencedResourceKind),
+						Kind:      string(libsveltosv1beta1.ConfigMapReferencedResourceKind),
 					},
 				},
 			},
@@ -88,7 +88,7 @@ var _ = Describe("ClustersummaryTransformations map functions", func() {
 		reconciler := &controllers.RoleRequestReconciler{
 			Client:                  c,
 			Scheme:                  scheme,
-			RoleRequests:            make(map[corev1.ObjectReference]libsveltosv1alpha1.Selector),
+			RoleRequests:            make(map[corev1.ObjectReference]libsveltosv1beta1.Selector),
 			ClusterMap:              make(map[corev1.ObjectReference]*libsveltosset.Set),
 			RoleRequestClusterMap:   make(map[corev1.ObjectReference]*libsveltosset.Set),
 			ReferenceMap:            make(map[corev1.ObjectReference]*libsveltosset.Set),
@@ -97,19 +97,19 @@ var _ = Describe("ClustersummaryTransformations map functions", func() {
 		}
 
 		key := corev1.ObjectReference{APIVersion: configMap.APIVersion,
-			Kind: string(libsveltosv1alpha1.ConfigMapReferencedResourceKind), Namespace: configMap.Namespace, Name: configMap.Name}
+			Kind: string(libsveltosv1beta1.ConfigMapReferencedResourceKind), Namespace: configMap.Namespace, Name: configMap.Name}
 
 		set := libsveltosset.Set{}
-		set.Insert(&corev1.ObjectReference{APIVersion: libsveltosv1alpha1.GroupVersion.String(),
-			Kind: libsveltosv1alpha1.RoleRequestKind, Name: roleRequest0.Name})
+		set.Insert(&corev1.ObjectReference{APIVersion: libsveltosv1beta1.GroupVersion.String(),
+			Kind: libsveltosv1beta1.RoleRequestKind, Name: roleRequest0.Name})
 		reconciler.ReferenceMap[key] = &set
 
 		requests := controllers.RequeueRoleRequestForReference(reconciler, context.TODO(), configMap)
 		Expect(requests).To(HaveLen(1))
 		Expect(requests[0].Name).To(Equal(roleRequest0.Name))
 
-		set.Insert(&corev1.ObjectReference{APIVersion: libsveltosv1alpha1.GroupVersion.String(),
-			Kind: libsveltosv1alpha1.RoleRequestKind, Name: roleRequest1.Name})
+		set.Insert(&corev1.ObjectReference{APIVersion: libsveltosv1beta1.GroupVersion.String(),
+			Kind: libsveltosv1beta1.RoleRequestKind, Name: roleRequest1.Name})
 		reconciler.ReferenceMap[key] = &set
 
 		requests = controllers.RequeueRoleRequestForReference(reconciler, context.TODO(), configMap)
@@ -120,7 +120,7 @@ var _ = Describe("ClustersummaryTransformations map functions", func() {
 
 	It("requeueRoleRequestForCluster returns matching RoleRequests", func() {
 		namespace := randomString()
-		cluster := &libsveltosv1alpha1.SveltosCluster{
+		cluster := &libsveltosv1beta1.SveltosCluster{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      randomString(),
 				Namespace: namespace,
@@ -130,23 +130,31 @@ var _ = Describe("ClustersummaryTransformations map functions", func() {
 			},
 		}
 
-		matchingRoleRequest := &libsveltosv1alpha1.RoleRequest{
+		matchingRoleRequest := &libsveltosv1beta1.RoleRequest{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: randomString(),
 			},
-			Spec: libsveltosv1alpha1.RoleRequestSpec{
-				ClusterSelector:         libsveltosv1alpha1.Selector("env=production"),
+			Spec: libsveltosv1beta1.RoleRequestSpec{
+				ClusterSelector: libsveltosv1beta1.Selector{
+					LabelSelector: metav1.LabelSelector{
+						MatchLabels: map[string]string{"env": "production"},
+					},
+				},
 				ServiceAccountName:      randomString(),
 				ServiceAccountNamespace: randomString(),
 			},
 		}
 
-		nonMatchingRoleRequest := &libsveltosv1alpha1.RoleRequest{
+		nonMatchingRoleRequest := &libsveltosv1beta1.RoleRequest{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: randomString(),
 			},
-			Spec: libsveltosv1alpha1.RoleRequestSpec{
-				ClusterSelector:         libsveltosv1alpha1.Selector("env=qa"),
+			Spec: libsveltosv1beta1.RoleRequestSpec{
+				ClusterSelector: libsveltosv1beta1.Selector{
+					LabelSelector: metav1.LabelSelector{
+						MatchLabels: map[string]string{"env": "qa"},
+					},
+				},
 				ServiceAccountName:      randomString(),
 				ServiceAccountNamespace: randomString(),
 			},
@@ -164,7 +172,7 @@ var _ = Describe("ClustersummaryTransformations map functions", func() {
 		reconciler := &controllers.RoleRequestReconciler{
 			Client:                  c,
 			Scheme:                  scheme,
-			RoleRequests:            make(map[corev1.ObjectReference]libsveltosv1alpha1.Selector),
+			RoleRequests:            make(map[corev1.ObjectReference]libsveltosv1beta1.Selector),
 			ClusterMap:              make(map[corev1.ObjectReference]*libsveltosset.Set),
 			RoleRequestClusterMap:   make(map[corev1.ObjectReference]*libsveltosset.Set),
 			ReferenceMap:            make(map[corev1.ObjectReference]*libsveltosset.Set),
@@ -174,10 +182,10 @@ var _ = Describe("ClustersummaryTransformations map functions", func() {
 
 		By("Setting RoleRequestReconciler internal structures")
 		matchingInfo := corev1.ObjectReference{APIVersion: cluster.APIVersion,
-			Kind: libsveltosv1alpha1.SveltosClusterKind, Name: matchingRoleRequest.Name}
+			Kind: libsveltosv1beta1.SveltosClusterKind, Name: matchingRoleRequest.Name}
 		reconciler.RoleRequests[matchingInfo] = matchingRoleRequest.Spec.ClusterSelector
 		nonMatchingInfo := corev1.ObjectReference{APIVersion: cluster.APIVersion,
-			Kind: libsveltosv1alpha1.SveltosClusterKind, Name: nonMatchingRoleRequest.Name}
+			Kind: libsveltosv1beta1.SveltosClusterKind, Name: nonMatchingRoleRequest.Name}
 		reconciler.RoleRequests[nonMatchingInfo] = nonMatchingRoleRequest.Spec.ClusterSelector
 
 		// ClusterMap contains, per ClusterName, list of RoleRequest matching it.
@@ -218,7 +226,13 @@ var _ = Describe("ClustersummaryTransformations map functions", func() {
 		Expect(requests).To(ContainElement(expected))
 
 		By("Changing roleRequest ClusterSelector again to have no ClusterProfile match")
-		matchingRoleRequest.Spec.ClusterSelector = libsveltosv1alpha1.Selector("env=qa")
+		matchingRoleRequest.Spec.ClusterSelector = libsveltosv1beta1.Selector{
+			LabelSelector: metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"env": "qa",
+				},
+			},
+		}
 		Expect(c.Update(context.TODO(), matchingRoleRequest)).To(Succeed())
 		nonMatchingRoleRequest.Spec.ClusterSelector = matchingRoleRequest.Spec.ClusterSelector
 		Expect(c.Update(context.TODO(), nonMatchingRoleRequest)).To(Succeed())
