@@ -29,7 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
 
-	libsveltosv1alpha1 "github.com/projectsveltos/libsveltos/api/v1alpha1"
+	libsveltosv1beta1 "github.com/projectsveltos/libsveltos/api/v1beta1"
 	libsveltosroles "github.com/projectsveltos/libsveltos/lib/roles"
 )
 
@@ -59,11 +59,11 @@ var _ = Describe("RoleRequest", func() {
 
 		Byf("Update RoleRequest %s to reference ConfigMap %s (namespace not set)", roleRequest.Name, configMap.Name)
 		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-			currentRoleRequest := &libsveltosv1alpha1.RoleRequest{}
+			currentRoleRequest := &libsveltosv1beta1.RoleRequest{}
 			Expect(k8sClient.Get(context.TODO(), types.NamespacedName{Name: roleRequest.Name}, currentRoleRequest)).To(Succeed())
-			currentRoleRequest.Spec.RoleRefs = []libsveltosv1alpha1.PolicyRef{
+			currentRoleRequest.Spec.RoleRefs = []libsveltosv1beta1.PolicyRef{
 				{
-					Kind:      string(libsveltosv1alpha1.ConfigMapReferencedResourceKind),
+					Kind:      string(libsveltosv1beta1.ConfigMapReferencedResourceKind),
 					Namespace: "",
 					Name:      configMap.Name,
 				},
@@ -106,7 +106,7 @@ var _ = Describe("RoleRequest", func() {
 		By(fmt.Sprintf("Verifying Secret for ServiceAccount %s/%s Cluster %s/%s is created in the management cluster",
 			saNamespace, saName, kindWorkloadCluster.Namespace, kindWorkloadCluster.Name))
 		saSecret, err := libsveltosroles.GetSecret(context.TODO(), k8sClient, kindWorkloadCluster.Namespace,
-			kindWorkloadCluster.Name, saNamespace, saName, libsveltosv1alpha1.ClusterTypeCapi)
+			kindWorkloadCluster.Name, saNamespace, saName, libsveltosv1beta1.ClusterTypeCapi)
 		Expect(err).To(BeNil())
 		Expect(saSecret).ToNot(BeNil())
 
@@ -151,7 +151,7 @@ var _ = Describe("RoleRequest", func() {
 		Expect(len(currentRoleBinding.Subjects)).To(Equal(1))
 		Expect(currentRoleBinding.Subjects[0].Name).To(Equal(saNameInManagedCluster))
 
-		currentRoleRequest := &libsveltosv1alpha1.RoleRequest{}
+		currentRoleRequest := &libsveltosv1beta1.RoleRequest{}
 
 		By(fmt.Sprintf("Deleting RoleRequest %s", roleRequest.Name))
 		Expect(k8sClient.Get(context.TODO(), types.NamespacedName{Name: roleRequest.Name}, currentRoleRequest)).To(Succeed())

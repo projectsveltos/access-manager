@@ -23,7 +23,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	libsveltosv1alpha1 "github.com/projectsveltos/libsveltos/api/v1alpha1"
+	libsveltosv1beta1 "github.com/projectsveltos/libsveltos/api/v1beta1"
 	logs "github.com/projectsveltos/libsveltos/lib/logsettings"
 )
 
@@ -31,8 +31,8 @@ import (
 func IfNewDeletedOrSpecChange(logger logr.Logger) predicate.Funcs {
 	return predicate.Funcs{
 		UpdateFunc: func(e event.UpdateEvent) bool {
-			newAccessRequest := e.ObjectNew.(*libsveltosv1alpha1.AccessRequest)
-			oldAccessRequest := e.ObjectOld.(*libsveltosv1alpha1.AccessRequest)
+			newAccessRequest := e.ObjectNew.(*libsveltosv1beta1.AccessRequest)
+			oldAccessRequest := e.ObjectOld.(*libsveltosv1beta1.AccessRequest)
 
 			log := logger.WithValues("predicate", "updateEvent",
 				"name", newAccessRequest.Name,

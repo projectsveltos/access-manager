@@ -36,12 +36,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/projectsveltos/access-manager/controllers"
-	libsveltosv1alpha1 "github.com/projectsveltos/libsveltos/api/v1alpha1"
+	libsveltosv1beta1 "github.com/projectsveltos/libsveltos/api/v1beta1"
 	fakedeployer "github.com/projectsveltos/libsveltos/lib/deployer/fake"
 )
 
 var _ = Describe("RoleRequets: Reconciler", func() {
-	var roleRequest *libsveltosv1alpha1.RoleRequest
+	var roleRequest *libsveltosv1beta1.RoleRequest
 	var logger logr.Logger
 
 	BeforeEach(func() {
@@ -67,19 +67,19 @@ var _ = Describe("RoleRequets: Reconciler", func() {
 		})
 		Expect(err).ToNot(HaveOccurred())
 
-		currentRoleRequest := &libsveltosv1alpha1.RoleRequest{}
+		currentRoleRequest := &libsveltosv1beta1.RoleRequest{}
 		err = c.Get(context.TODO(), roleRequestName, currentRoleRequest)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(
 			controllerutil.ContainsFinalizer(
 				currentRoleRequest,
-				libsveltosv1alpha1.RoleRequestFinalizer,
+				libsveltosv1beta1.RoleRequestFinalizer,
 			),
 		).Should(BeTrue())
 	})
 
 	It("Remove finalizer", func() {
-		Expect(controllerutil.AddFinalizer(roleRequest, libsveltosv1alpha1.RoleRequestFinalizer)).To(BeTrue())
+		Expect(controllerutil.AddFinalizer(roleRequest, libsveltosv1beta1.RoleRequestFinalizer)).To(BeTrue())
 
 		cluster := &clusterv1.Cluster{
 			ObjectMeta: metav1.ObjectMeta{
@@ -102,10 +102,10 @@ var _ = Describe("RoleRequets: Reconciler", func() {
 			Name: roleRequest.Name,
 		}
 
-		currentRoleRequest := &libsveltosv1alpha1.RoleRequest{}
+		currentRoleRequest := &libsveltosv1beta1.RoleRequest{}
 
 		Expect(c.Get(context.TODO(), roleRequestName, currentRoleRequest)).To(Succeed())
-		currentRoleRequest.Status.ClusterInfo = []libsveltosv1alpha1.ClusterInfo{
+		currentRoleRequest.Status.ClusterInfo = []libsveltosv1beta1.ClusterInfo{
 			{
 				Cluster: corev1.ObjectReference{
 					Namespace:  cluster.Namespace,
@@ -113,7 +113,7 @@ var _ = Describe("RoleRequets: Reconciler", func() {
 					APIVersion: cluster.APIVersion,
 					Kind:       cluster.Kind,
 				},
-				Status: libsveltosv1alpha1.SveltosStatusProvisioned,
+				Status: libsveltosv1beta1.SveltosStatusProvisioned,
 				Hash:   []byte(randomString()),
 			},
 		}
@@ -124,7 +124,7 @@ var _ = Describe("RoleRequets: Reconciler", func() {
 		Expect(c.Delete(context.TODO(), currentRoleRequest)).To(Succeed())
 
 		dep := fakedeployer.GetClient(context.TODO(), logger, testEnv.Client)
-		Expect(dep.RegisterFeatureID(libsveltosv1alpha1.FeatureRoleRequest)).To(Succeed())
+		Expect(dep.RegisterFeatureID(libsveltosv1beta1.FeatureRoleRequest)).To(Succeed())
 
 		reconciler := getRoleRequestReconciler(c, dep)
 
@@ -137,9 +137,9 @@ var _ = Describe("RoleRequets: Reconciler", func() {
 
 		err = c.Get(context.TODO(), roleRequestName, currentRoleRequest)
 		Expect(err).ToNot(HaveOccurred())
-		Expect(controllerutil.ContainsFinalizer(currentRoleRequest, libsveltosv1alpha1.RoleRequestFinalizer)).To(BeTrue())
+		Expect(controllerutil.ContainsFinalizer(currentRoleRequest, libsveltosv1beta1.RoleRequestFinalizer)).To(BeTrue())
 
-		currentRoleRequest.Status.ClusterInfo = []libsveltosv1alpha1.ClusterInfo{}
+		currentRoleRequest.Status.ClusterInfo = []libsveltosv1beta1.ClusterInfo{}
 		Expect(c.Status().Update(context.TODO(), currentRoleRequest)).To(Succeed())
 
 		// Because RoleRequest is currently deployed nowhere (Status.ClusterInfo is set
@@ -155,7 +155,7 @@ var _ = Describe("RoleRequets: Reconciler", func() {
 	})
 
 	It("getMatchingClusters finds all matching clusters", func() {
-		sveltosCluster := &libsveltosv1alpha1.SveltosCluster{
+		sveltosCluster := &libsveltosv1beta1.SveltosCluster{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      randomString(),
 				Namespace: randomString(),
@@ -164,7 +164,7 @@ var _ = Describe("RoleRequets: Reconciler", func() {
 					"zone": "west",
 				},
 			},
-			Status: libsveltosv1alpha1.SveltosClusterStatus{
+			Status: libsveltosv1beta1.SveltosClusterStatus{
 				Ready: true,
 			},
 		}
@@ -196,7 +196,14 @@ var _ = Describe("RoleRequets: Reconciler", func() {
 			},
 		}
 
-		roleRequest.Spec.ClusterSelector = libsveltosv1alpha1.Selector("env=qa,zone=west")
+		roleRequest.Spec.ClusterSelector = libsveltosv1beta1.Selector{
+			LabelSelector: metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"env":  "qa",
+					"zone": "west",
+				},
+			},
+		}
 
 		clusterCRD := generateTestClusterAPICRD("cluster", "clusters")
 
@@ -293,14 +300,14 @@ var _ = Describe("RoleRequets: Reconciler", func() {
 			// passing random value for kubeconfig) and the tokenRequest expiration time.
 			// Owner of those secrets is the roleRequest.
 			Expect(controllers.CreateSecretWithKubeconfig(context.TODO(), testEnv.Client, roleRequest,
-				clusters[i].namespace, clusters[i].name, libsveltosv1alpha1.ClusterTypeSveltos,
+				clusters[i].namespace, clusters[i].name, libsveltosv1beta1.ClusterTypeSveltos,
 				[]byte(randomString()), &tokenRequest.Status, logger)).To(Succeed())
 
 			// Wait for cache to sync
 			Eventually(func() error {
 				_, err := controllers.GetSecretWithKubeconfig(context.TODO(),
 					testEnv.Client, roleRequest, clusters[i].namespace,
-					clusters[i].name, libsveltosv1alpha1.ClusterTypeSveltos, logger)
+					clusters[i].name, libsveltosv1beta1.ClusterTypeSveltos, logger)
 				return err
 			}, timeout, pollingInterval).Should(BeNil())
 		}

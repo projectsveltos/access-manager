@@ -31,13 +31,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/projectsveltos/access-manager/controllers"
-	libsveltosv1alpha1 "github.com/projectsveltos/libsveltos/api/v1alpha1"
+	libsveltosv1beta1 "github.com/projectsveltos/libsveltos/api/v1beta1"
 )
 
 var _ = Describe("Cluster utils", func() {
 	var namespace string
 	var cluster *clusterv1.Cluster
-	var sveltosCluster *libsveltosv1alpha1.SveltosCluster
+	var sveltosCluster *libsveltosv1beta1.SveltosCluster
 	var logger logr.Logger
 
 	BeforeEach(func() {
@@ -55,12 +55,12 @@ var _ = Describe("Cluster utils", func() {
 			},
 		}
 
-		sveltosCluster = &libsveltosv1alpha1.SveltosCluster{
+		sveltosCluster = &libsveltosv1beta1.SveltosCluster{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      randomString(),
 				Namespace: namespace,
 			},
-			Spec: libsveltosv1alpha1.SveltosClusterSpec{
+			Spec: libsveltosv1beta1.SveltosClusterSpec{
 				Paused: true,
 			},
 		}
@@ -75,12 +75,12 @@ var _ = Describe("Cluster utils", func() {
 			WithObjects(initObjects...).Build()
 
 		paused, err := controllers.IsClusterPaused(context.TODO(), c, cluster.Namespace,
-			cluster.Name, libsveltosv1alpha1.ClusterTypeCapi)
+			cluster.Name, libsveltosv1beta1.ClusterTypeCapi)
 		Expect(err).To(BeNil())
 		Expect(paused).To(BeTrue())
 
 		paused, err = controllers.IsClusterPaused(context.TODO(), c, sveltosCluster.Namespace,
-			sveltosCluster.Name, libsveltosv1alpha1.ClusterTypeSveltos)
+			sveltosCluster.Name, libsveltosv1beta1.ClusterTypeSveltos)
 		Expect(err).To(BeNil())
 		Expect(paused).To(BeTrue())
 	})
@@ -96,12 +96,12 @@ var _ = Describe("Cluster utils", func() {
 			WithObjects(initObjects...).Build()
 
 		paused, err := controllers.IsClusterPaused(context.TODO(), c, cluster.Namespace,
-			cluster.Name, libsveltosv1alpha1.ClusterTypeCapi)
+			cluster.Name, libsveltosv1beta1.ClusterTypeCapi)
 		Expect(err).To(BeNil())
 		Expect(paused).To(BeFalse())
 
 		paused, err = controllers.IsClusterPaused(context.TODO(), c, sveltosCluster.Namespace,
-			sveltosCluster.Name, libsveltosv1alpha1.ClusterTypeSveltos)
+			sveltosCluster.Name, libsveltosv1beta1.ClusterTypeSveltos)
 		Expect(err).To(BeNil())
 		Expect(paused).To(BeFalse())
 	})
@@ -139,12 +139,12 @@ var _ = Describe("Cluster utils", func() {
 			WithObjects(initObjects...).Build()
 
 		data, err := controllers.GetSecretData(context.TODO(), c, cluster.Namespace, cluster.Name,
-			libsveltosv1alpha1.ClusterTypeCapi, logger)
+			libsveltosv1beta1.ClusterTypeCapi, logger)
 		Expect(err).To(BeNil())
 		Expect(data).To(Equal(randomData))
 
 		data, err = controllers.GetSecretData(context.TODO(), c, sveltosCluster.Namespace, sveltosCluster.Name,
-			libsveltosv1alpha1.ClusterTypeSveltos, logger)
+			libsveltosv1beta1.ClusterTypeSveltos, logger)
 		Expect(err).To(BeNil())
 		Expect(data).To(Equal(randomData))
 	})

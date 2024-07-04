@@ -37,7 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/projectsveltos/access-manager/controllers"
-	libsveltosv1alpha1 "github.com/projectsveltos/libsveltos/api/v1alpha1"
+	libsveltosv1beta1 "github.com/projectsveltos/libsveltos/api/v1beta1"
 	"github.com/projectsveltos/libsveltos/lib/deployer"
 	fakedeployer "github.com/projectsveltos/libsveltos/lib/deployer/fake"
 	"github.com/projectsveltos/libsveltos/lib/roles"
@@ -99,7 +99,7 @@ var _ = Describe("Deployer", func() {
 	})
 
 	It("deployRoleRequestInCluster deploys resources in referenced ConfigMaps/Secrets", func() {
-		sveltosCluster := libsveltosv1alpha1.SveltosCluster{
+		sveltosCluster := libsveltosv1beta1.SveltosCluster{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: randomString(),
 				Name:      randomString(),
@@ -141,8 +141,8 @@ var _ = Describe("Deployer", func() {
 		waitForObject(context.TODO(), testEnv.Client, roleRequest)
 
 		Expect(controllers.DeployRoleRequestInCluster(context.TODO(), testEnv.Client,
-			sveltosCluster.Namespace, sveltosCluster.Name, roleRequest.Name, libsveltosv1alpha1.FeatureRoleRequest,
-			libsveltosv1alpha1.ClusterTypeSveltos, deployer.Options{}, logger)).To(Succeed())
+			sveltosCluster.Namespace, sveltosCluster.Name, roleRequest.Name, libsveltosv1beta1.FeatureRoleRequest,
+			libsveltosv1beta1.ClusterTypeSveltos, deployer.Options{}, logger)).To(Succeed())
 
 		// Verify all ClusterRoles are present
 		Eventually(func() bool {
@@ -197,7 +197,7 @@ var _ = Describe("Deployer", func() {
 	})
 
 	It("deployRoleRequestInCluster removes stale resources", func() {
-		sveltosCluster := libsveltosv1alpha1.SveltosCluster{
+		sveltosCluster := libsveltosv1beta1.SveltosCluster{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: randomString(),
 				Name:      randomString(),
@@ -239,8 +239,8 @@ var _ = Describe("Deployer", func() {
 		waitForObject(context.TODO(), testEnv.Client, roleRequest)
 
 		Expect(controllers.DeployRoleRequestInCluster(context.TODO(), testEnv.Client, sveltosCluster.Namespace,
-			sveltosCluster.Name, roleRequest.Name, libsveltosv1alpha1.FeatureRoleRequest,
-			libsveltosv1alpha1.ClusterTypeSveltos, deployer.Options{}, logger)).To(Succeed())
+			sveltosCluster.Name, roleRequest.Name, libsveltosv1beta1.FeatureRoleRequest,
+			libsveltosv1beta1.ClusterTypeSveltos, deployer.Options{}, logger)).To(Succeed())
 
 		// Verify ClusterRole is present
 		Eventually(func() bool {
@@ -297,14 +297,14 @@ var _ = Describe("Deployer", func() {
 			currentServiceAccount)).To(Succeed())
 
 		// Update RoleRequest to not reference ConfigMap anymore
-		currentRoleRequest := &libsveltosv1alpha1.RoleRequest{}
+		currentRoleRequest := &libsveltosv1beta1.RoleRequest{}
 		Expect(testEnv.Get(context.TODO(), types.NamespacedName{Name: roleRequest.Name},
 			currentRoleRequest)).To(Succeed())
-		currentRoleRequest.Spec.RoleRefs = make([]libsveltosv1alpha1.PolicyRef, 0)
+		currentRoleRequest.Spec.RoleRefs = make([]libsveltosv1beta1.PolicyRef, 0)
 		Expect(testEnv.Update(context.TODO(), currentRoleRequest)).To(Succeed())
 
 		Eventually(func() bool {
-			currentRoleRequest := &libsveltosv1alpha1.RoleRequest{}
+			currentRoleRequest := &libsveltosv1beta1.RoleRequest{}
 			err := testEnv.Get(context.TODO(),
 				types.NamespacedName{Name: roleRequest.Name},
 				currentRoleRequest)
@@ -316,8 +316,8 @@ var _ = Describe("Deployer", func() {
 
 		// Verify stale resources are gone
 		Expect(controllers.DeployRoleRequestInCluster(context.TODO(), testEnv.Client, sveltosCluster.Namespace,
-			sveltosCluster.Name, roleRequest.Name, libsveltosv1alpha1.FeatureRoleRequest,
-			libsveltosv1alpha1.ClusterTypeSveltos, deployer.Options{}, logger)).To(Succeed())
+			sveltosCluster.Name, roleRequest.Name, libsveltosv1beta1.FeatureRoleRequest,
+			libsveltosv1beta1.ClusterTypeSveltos, deployer.Options{}, logger)).To(Succeed())
 
 		// Verify ClusterRole is gone
 		Eventually(func() bool {
@@ -339,7 +339,7 @@ var _ = Describe("Deployer", func() {
 	})
 
 	It("undeployRoleRequestFromCluster removes stale resources", func() {
-		sveltosCluster := libsveltosv1alpha1.SveltosCluster{
+		sveltosCluster := libsveltosv1beta1.SveltosCluster{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: randomString(),
 				Name:      randomString(),
@@ -392,8 +392,8 @@ var _ = Describe("Deployer", func() {
 		waitForObject(context.TODO(), testEnv.Client, clusterRoleBinding)
 
 		Expect(controllers.UndeployRoleRequestFromCluster(context.TODO(), testEnv.Client, sveltosCluster.Namespace,
-			sveltosCluster.Name, roleRequest.Name, libsveltosv1alpha1.FeatureRoleRequest,
-			libsveltosv1alpha1.ClusterTypeSveltos, deployer.Options{}, logger)).To(Succeed())
+			sveltosCluster.Name, roleRequest.Name, libsveltosv1beta1.FeatureRoleRequest,
+			libsveltosv1beta1.ClusterTypeSveltos, deployer.Options{}, logger)).To(Succeed())
 
 		// Verify ClusterRole is gone
 		Eventually(func() bool {
@@ -415,7 +415,7 @@ var _ = Describe("Deployer", func() {
 	})
 
 	It("undeployRoleRequestFromCluster removes secrets", func() {
-		sveltosCluster := libsveltosv1alpha1.SveltosCluster{
+		sveltosCluster := libsveltosv1beta1.SveltosCluster{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: randomString(),
 				Name:      randomString(),
@@ -448,8 +448,8 @@ var _ = Describe("Deployer", func() {
 		numberOfSecrets := len(secretList.Items)
 
 		Expect(controllers.DeployRoleRequestInCluster(context.TODO(), testEnv.Client, sveltosCluster.Namespace,
-			sveltosCluster.Name, roleRequest.Name, libsveltosv1alpha1.FeatureRoleRequest,
-			libsveltosv1alpha1.ClusterTypeSveltos, deployer.Options{}, logger)).To(Succeed())
+			sveltosCluster.Name, roleRequest.Name, libsveltosv1beta1.FeatureRoleRequest,
+			libsveltosv1beta1.ClusterTypeSveltos, deployer.Options{}, logger)).To(Succeed())
 
 		// Secret with kubeconfig for serviceAccount is created in the cluster namespace by above DeployRoleRequestInCluster
 		Eventually(func() bool {
@@ -459,8 +459,8 @@ var _ = Describe("Deployer", func() {
 		}, timeout, pollingInterval).Should(BeTrue())
 
 		Expect(controllers.UndeployRoleRequestFromCluster(ctx, testEnv.Client, sveltosCluster.Namespace,
-			sveltosCluster.Name, roleRequest.Name, libsveltosv1alpha1.FeatureRoleRequest,
-			libsveltosv1alpha1.ClusterTypeSveltos, deployer.Options{}, logger)).To(Succeed())
+			sveltosCluster.Name, roleRequest.Name, libsveltosv1beta1.FeatureRoleRequest,
+			libsveltosv1beta1.ClusterTypeSveltos, deployer.Options{}, logger)).To(Succeed())
 
 		// Secret with kubeconfig for serviceAccount is deleted in the cluster namespace by above UndeployRoleRequestFromCluster
 		Eventually(func() bool {
@@ -473,13 +473,13 @@ var _ = Describe("Deployer", func() {
 
 	It("processRoleRequest detects roleRequest needs to be deployed in cluster", func() {
 		dep := fakedeployer.GetClient(context.TODO(), logger, testEnv.Client)
-		Expect(dep.RegisterFeatureID(libsveltosv1alpha1.FeatureRoleRequest)).To(Succeed())
+		Expect(dep.RegisterFeatureID(libsveltosv1beta1.FeatureRoleRequest)).To(Succeed())
 
 		roleRequestReconciler := getRoleRequestReconciler(testEnv.Client, dep)
 		roleRequest := getRoleRequest(nil, nil, randomString(), randomString())
 		roleRequestScope := getRoleRequestScope(testEnv.Client, logger, roleRequest)
 
-		sveltosCluster := libsveltosv1alpha1.SveltosCluster{
+		sveltosCluster := libsveltosv1beta1.SveltosCluster{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: randomString(),
 				Name:      randomString(),
@@ -487,19 +487,19 @@ var _ = Describe("Deployer", func() {
 		}
 		prepareForTesting(&sveltosCluster)
 
-		f := controllers.GetHandlersForFeature(libsveltosv1alpha1.FeatureRoleRequest)
+		f := controllers.GetHandlersForFeature(libsveltosv1beta1.FeatureRoleRequest)
 		clusterInfo, err := controllers.ProcessRoleRequest(roleRequestReconciler, context.TODO(),
 			roleRequestScope, getClusterRef(&sveltosCluster), f, logger)
 		Expect(err).To(BeNil())
 		Expect(clusterInfo).ToNot(BeNil())
-		Expect(clusterInfo.Status).To(Equal(libsveltosv1alpha1.SveltosStatusProvisioning))
+		Expect(clusterInfo.Status).To(Equal(libsveltosv1beta1.SveltosStatusProvisioning))
 	})
 
 	It("processRoleRequest detects RoleRequest does need to be deployed in cluster as timer is expired", func() {
 		dep := fakedeployer.GetClient(context.TODO(), logger, testEnv.Client)
-		Expect(dep.RegisterFeatureID(libsveltosv1alpha1.FeatureRoleRequest)).To(Succeed())
+		Expect(dep.RegisterFeatureID(libsveltosv1beta1.FeatureRoleRequest)).To(Succeed())
 
-		sveltosCluster := libsveltosv1alpha1.SveltosCluster{
+		sveltosCluster := libsveltosv1beta1.SveltosCluster{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: randomString(),
 				Name:      randomString(),
@@ -518,15 +518,15 @@ var _ = Describe("Deployer", func() {
 			roleRequest, logger)
 		Expect(err).To(BeNil())
 		Expect(testEnv.Get(context.TODO(), types.NamespacedName{Name: roleRequest.Name}, roleRequest)).To(Succeed())
-		roleRequest.Status = libsveltosv1alpha1.RoleRequestStatus{
-			ClusterInfo: []libsveltosv1alpha1.ClusterInfo{
+		roleRequest.Status = libsveltosv1beta1.RoleRequestStatus{
+			ClusterInfo: []libsveltosv1beta1.ClusterInfo{
 				{
 					Cluster: corev1.ObjectReference{
 						Namespace: sveltosCluster.Namespace, Name: sveltosCluster.Name,
-						APIVersion: libsveltosv1alpha1.GroupVersion.String(),
-						Kind:       libsveltosv1alpha1.SveltosClusterKind,
+						APIVersion: libsveltosv1beta1.GroupVersion.String(),
+						Kind:       libsveltosv1beta1.SveltosClusterKind,
 					},
-					Status: libsveltosv1alpha1.SveltosStatusProvisioned,
+					Status: libsveltosv1beta1.SveltosStatusProvisioned,
 					Hash:   hash,
 				},
 			},
@@ -545,23 +545,23 @@ var _ = Describe("Deployer", func() {
 
 		// There is no secret containing current expiration time, so Sveltos will detect this
 		// as needing to be deployed
-		f := controllers.GetHandlersForFeature(libsveltosv1alpha1.FeatureRoleRequest)
+		f := controllers.GetHandlersForFeature(libsveltosv1beta1.FeatureRoleRequest)
 		clusterInfo, err := controllers.ProcessRoleRequest(roleRequestReconciler, context.TODO(),
 			roleRequestScope, getClusterRef(&sveltosCluster), f, logger)
 		Expect(err).To(BeNil())
 		Expect(clusterInfo).ToNot(BeNil())
-		Expect(clusterInfo.Status).To(Equal(libsveltosv1alpha1.SveltosStatusProvisioning))
+		Expect(clusterInfo.Status).To(Equal(libsveltosv1beta1.SveltosStatusProvisioning))
 	})
 
 	It("removeRoleRequest queue job to remove RoleRequest from Cluster", func() {
 		dep := fakedeployer.GetClient(context.TODO(), logger, testEnv.Client)
-		Expect(dep.RegisterFeatureID(libsveltosv1alpha1.FeatureRoleRequest)).To(Succeed())
+		Expect(dep.RegisterFeatureID(libsveltosv1beta1.FeatureRoleRequest)).To(Succeed())
 
 		roleRequestReconciler := getRoleRequestReconciler(testEnv.Client, dep)
 		roleRequest := getRoleRequest(nil, nil, randomString(), randomString())
 		roleRequestScope := getRoleRequestScope(testEnv.Client, logger, roleRequest)
 
-		sveltosCluster := libsveltosv1alpha1.SveltosCluster{
+		sveltosCluster := libsveltosv1beta1.SveltosCluster{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: randomString(),
 				Name:      randomString(),
@@ -572,16 +572,16 @@ var _ = Describe("Deployer", func() {
 		Expect(testEnv.Create(context.TODO(), roleRequest)).To(Succeed())
 		waitForObject(context.TODO(), testEnv.Client, roleRequest)
 
-		currentRoleRequest := &libsveltosv1alpha1.RoleRequest{}
+		currentRoleRequest := &libsveltosv1beta1.RoleRequest{}
 		Expect(testEnv.Get(context.TODO(), types.NamespacedName{Name: roleRequest.Name},
 			currentRoleRequest)).To(Succeed())
-		currentRoleRequest.Status.ClusterInfo = []libsveltosv1alpha1.ClusterInfo{
+		currentRoleRequest.Status.ClusterInfo = []libsveltosv1beta1.ClusterInfo{
 			{
 				Cluster: corev1.ObjectReference{
 					Namespace: sveltosCluster.Namespace, Name: sveltosCluster.Name,
-					APIVersion: libsveltosv1alpha1.GroupVersion.String(), Kind: libsveltosv1alpha1.SveltosClusterKind,
+					APIVersion: libsveltosv1beta1.GroupVersion.String(), Kind: libsveltosv1beta1.SveltosClusterKind,
 				},
-				Status: libsveltosv1alpha1.SveltosStatusProvisioned,
+				Status: libsveltosv1beta1.SveltosStatusProvisioned,
 				Hash:   []byte(randomString()),
 			},
 		}
@@ -589,20 +589,20 @@ var _ = Describe("Deployer", func() {
 		Expect(testEnv.Status().Update(context.TODO(), currentRoleRequest)).To(Succeed())
 		// Eventual loop so testEnv Cache is synced
 		Eventually(func() bool {
-			currentRoleRequest := &libsveltosv1alpha1.RoleRequest{}
+			currentRoleRequest := &libsveltosv1beta1.RoleRequest{}
 			err := testEnv.Get(context.TODO(), types.NamespacedName{Name: roleRequest.Name},
 				currentRoleRequest)
 			return err == nil && len(currentRoleRequest.Status.ClusterInfo) == 1
 		}, timeout, pollingInterval).Should(BeTrue())
 
-		f := controllers.GetHandlersForFeature(libsveltosv1alpha1.FeatureRoleRequest)
+		f := controllers.GetHandlersForFeature(libsveltosv1beta1.FeatureRoleRequest)
 		err := controllers.RemoveRoleRequest(roleRequestReconciler, context.TODO(), roleRequestScope,
 			getClusterRef(&sveltosCluster), f, logger)
 		Expect(err).ToNot(BeNil())
 		Expect(err.Error()).To(Equal("cleanup request is queued"))
 
 		key := deployer.GetKey(sveltosCluster.Namespace, sveltosCluster.Name,
-			roleRequest.Name, libsveltosv1alpha1.FeatureRoleRequest, libsveltosv1alpha1.ClusterTypeSveltos, true)
+			roleRequest.Name, libsveltosv1beta1.FeatureRoleRequest, libsveltosv1beta1.ClusterTypeSveltos, true)
 		Expect(dep.IsKeyInProgress(key)).To(BeTrue())
 	})
 })

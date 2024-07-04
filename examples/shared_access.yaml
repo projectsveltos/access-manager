@@ -37,12 +37,14 @@ data:
 # RoleRequest gives admin 'eng/devops' access to namespaces
 # 'ci-cd' and 'cuild' in all clusters matching the label
 # selector env=internal
-apiVersion: lib.projectsveltos.io/v1alpha1                                                                                 
+apiVersion: lib.projectsveltos.io/v1beta1                                                                                 
 kind: RoleRequest                                                                                                          
 metadata:
   name: eng-access
 spec:                                                                                                                      
-  clusterSelector: env=internal
+  clusterSelector: 
+    matchLabels:
+      env: internal
   serviceAccountName: devops
   serviceAccountNamespace: eng
   roleRefs:
@@ -75,12 +77,14 @@ data:
 # RoleRequest gives admin 'hr/devops' access to namespace
 # 'human-resource' in all clusters matching the label
 # selector env=internal
-apiVersion: lib.projectsveltos.io/v1alpha1                                                                                 
+apiVersion: lib.projectsveltos.io/v1beta1                                                                                 
 kind: RoleRequest                                                                                                          
 metadata:
   name: hr-access
 spec:                                                                                                                      
-  clusterSelector: env=internal
+  clusterSelector: 
+    matchLabels:
+      env: internal
   serviceAccountName: devops
   serviceAccountNamespace: hr
   roleRefs:

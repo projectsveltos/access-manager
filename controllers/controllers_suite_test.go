@@ -47,7 +47,7 @@ import (
 	"github.com/projectsveltos/access-manager/controllers"
 	"github.com/projectsveltos/access-manager/internal/test/helpers"
 	"github.com/projectsveltos/access-manager/pkg/scope"
-	libsveltosv1alpha1 "github.com/projectsveltos/libsveltos/api/v1alpha1"
+	libsveltosv1beta1 "github.com/projectsveltos/libsveltos/api/v1beta1"
 	"github.com/projectsveltos/libsveltos/lib/crd"
 	"github.com/projectsveltos/libsveltos/lib/deployer"
 	libsveltosset "github.com/projectsveltos/libsveltos/lib/set"
@@ -132,7 +132,7 @@ var _ = AfterSuite(func() {
 
 func setupScheme() (*runtime.Scheme, error) {
 	s := runtime.NewScheme()
-	if err := libsveltosv1alpha1.AddToScheme(s); err != nil {
+	if err := libsveltosv1beta1.AddToScheme(s); err != nil {
 		return nil, err
 	}
 	if err := clusterv1.AddToScheme(s); err != nil {
@@ -167,16 +167,16 @@ func waitForObject(ctx context.Context, c client.Client, obj client.Object) {
 	}, timeout, pollingInterval).Should(BeNil())
 }
 
-func getAccessRequest(namespace, name string) *libsveltosv1alpha1.AccessRequest {
-	return &libsveltosv1alpha1.AccessRequest{
+func getAccessRequest(namespace, name string) *libsveltosv1beta1.AccessRequest {
+	return &libsveltosv1beta1.AccessRequest{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: namespace,
 			Name:      name,
 		},
-		Spec: libsveltosv1alpha1.AccessRequestSpec{
+		Spec: libsveltosv1beta1.AccessRequestSpec{
 			Namespace: namespace,
 			Name:      name + "-classifier-agent",
-			Type:      libsveltosv1alpha1.SveltosAgentRequest,
+			Type:      libsveltosv1beta1.SveltosAgentRequest,
 			ControlPlaneEndpoint: clusterv1.APIEndpoint{
 				Host: "https://192.168.10.1",
 				Port: int32(6443),
@@ -190,7 +190,7 @@ func getRoleRequestReconciler(c client.Client, dep deployer.DeployerInterface) *
 		Client:                  c,
 		Scheme:                  scheme,
 		Deployer:                dep,
-		RoleRequests:            make(map[corev1.ObjectReference]libsveltosv1alpha1.Selector),
+		RoleRequests:            make(map[corev1.ObjectReference]libsveltosv1beta1.Selector),
 		ClusterMap:              make(map[corev1.ObjectReference]*libsveltosset.Set),
 		RoleRequestClusterMap:   make(map[corev1.ObjectReference]*libsveltosset.Set),
 		ReferenceMap:            make(map[corev1.ObjectReference]*libsveltosset.Set),
@@ -200,7 +200,7 @@ func getRoleRequestReconciler(c client.Client, dep deployer.DeployerInterface) *
 }
 
 func getRoleRequestScope(c client.Client, logger logr.Logger,
-	roleRequest *libsveltosv1alpha1.RoleRequest) *scope.RoleRequestScope {
+	roleRequest *libsveltosv1beta1.RoleRequest) *scope.RoleRequestScope {
 
 	classifierScope, err := scope.NewRoleRequestScope(scope.RoleRequestScopeParams{
 		Client:         c,
@@ -262,7 +262,7 @@ func createSecretWithPolicy(namespace, configMapName string, policyStrs ...strin
 			Namespace: namespace,
 			Name:      configMapName,
 		},
-		Type: libsveltosv1alpha1.ClusterProfileSecretType,
+		Type: libsveltosv1beta1.ClusterProfileSecretType,
 		Data: map[string][]byte{},
 	}
 	for i := range policyStrs {
@@ -276,30 +276,30 @@ func createSecretWithPolicy(namespace, configMapName string, policyStrs ...strin
 }
 
 func getRoleRequest(configMaps []corev1.ConfigMap, secrets []corev1.Secret,
-	saNamesapce, saName string) *libsveltosv1alpha1.RoleRequest {
+	saNamesapce, saName string) *libsveltosv1beta1.RoleRequest {
 
-	roleRequest := libsveltosv1alpha1.RoleRequest{
+	roleRequest := libsveltosv1beta1.RoleRequest{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: randomString(),
 		},
-		Spec: libsveltosv1alpha1.RoleRequestSpec{
-			RoleRefs:                make([]libsveltosv1alpha1.PolicyRef, 0),
+		Spec: libsveltosv1beta1.RoleRequestSpec{
+			RoleRefs:                make([]libsveltosv1beta1.PolicyRef, 0),
 			ServiceAccountName:      saName,
 			ServiceAccountNamespace: saNamesapce,
 		},
 	}
 
 	for i := range configMaps {
-		roleRequest.Spec.RoleRefs = append(roleRequest.Spec.RoleRefs, libsveltosv1alpha1.PolicyRef{
-			Kind:      string(libsveltosv1alpha1.ConfigMapReferencedResourceKind),
+		roleRequest.Spec.RoleRefs = append(roleRequest.Spec.RoleRefs, libsveltosv1beta1.PolicyRef{
+			Kind:      string(libsveltosv1beta1.ConfigMapReferencedResourceKind),
 			Namespace: configMaps[i].Namespace,
 			Name:      configMaps[i].Name,
 		})
 	}
 
 	for i := range secrets {
-		roleRequest.Spec.RoleRefs = append(roleRequest.Spec.RoleRefs, libsveltosv1alpha1.PolicyRef{
-			Kind:      string(libsveltosv1alpha1.SecretReferencedResourceKind),
+		roleRequest.Spec.RoleRefs = append(roleRequest.Spec.RoleRefs, libsveltosv1beta1.PolicyRef{
+			Kind:      string(libsveltosv1beta1.SecretReferencedResourceKind),
 			Namespace: secrets[i].Namespace,
 			Name:      secrets[i].Name,
 		})
@@ -311,7 +311,7 @@ func getRoleRequest(configMaps []corev1.ConfigMap, secrets []corev1.Secret,
 // prepareForTesting creates following:
 // - SveltosCluster (and its namespace)
 // - secret containing kubeconfig to access CAPI Cluster
-func prepareForTesting(cluster *libsveltosv1alpha1.SveltosCluster) {
+func prepareForTesting(cluster *libsveltosv1beta1.SveltosCluster) {
 	By("Create the secret with cluster kubeconfig")
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -338,7 +338,7 @@ func prepareForTesting(cluster *libsveltosv1alpha1.SveltosCluster) {
 	Expect(addTypeInformationToObject(scheme, cluster)).To(Succeed())
 
 	// Set cluster ready
-	currentCluster := &libsveltosv1alpha1.SveltosCluster{}
+	currentCluster := &libsveltosv1beta1.SveltosCluster{}
 	Expect(testEnv.Client.Get(context.TODO(),
 		types.NamespacedName{Namespace: cluster.Namespace, Name: cluster.Name}, currentCluster)).To(Succeed())
 	currentCluster.Status.Ready = true

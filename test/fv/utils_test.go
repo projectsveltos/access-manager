@@ -34,7 +34,7 @@ import (
 	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	libsveltosv1alpha1 "github.com/projectsveltos/libsveltos/api/v1alpha1"
+	libsveltosv1beta1 "github.com/projectsveltos/libsveltos/api/v1beta1"
 )
 
 const (
@@ -52,18 +52,18 @@ func randomString() string {
 	return util.RandomString(length)
 }
 
-func getAccessRequest(namePrefix string) *libsveltosv1alpha1.AccessRequest {
+func getAccessRequest(namePrefix string) *libsveltosv1beta1.AccessRequest {
 	namespace := namePrefix + randomString()
 	name := namePrefix + randomString()
-	return &libsveltosv1alpha1.AccessRequest{
+	return &libsveltosv1beta1.AccessRequest{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: namespace,
 			Name:      name,
 		},
-		Spec: libsveltosv1alpha1.AccessRequestSpec{
+		Spec: libsveltosv1beta1.AccessRequestSpec{
 			Namespace: namespace,
 			Name:      name + "-classifier-agent",
-			Type:      libsveltosv1alpha1.SveltosAgentRequest,
+			Type:      libsveltosv1beta1.SveltosAgentRequest,
 			ControlPlaneEndpoint: clusterv1.APIEndpoint{
 				Host: "https://192.168.10.22",
 				Port: int32(6433),
@@ -72,17 +72,17 @@ func getAccessRequest(namePrefix string) *libsveltosv1alpha1.AccessRequest {
 	}
 }
 
-func verifyAccessRequest(accessRequest *libsveltosv1alpha1.AccessRequest) {
+func verifyAccessRequest(accessRequest *libsveltosv1beta1.AccessRequest) {
 	Byf("Verifing AccessRequest %s/%s", accessRequest.Namespace, accessRequest.Name)
 
 	Byf("Get AccessRequest")
 	Eventually(func() error {
-		currentAccessRequest := &libsveltosv1alpha1.AccessRequest{}
+		currentAccessRequest := &libsveltosv1beta1.AccessRequest{}
 		return k8sClient.Get(context.TODO(),
 			types.NamespacedName{Namespace: accessRequest.Namespace, Name: accessRequest.Name}, currentAccessRequest)
 	}, timeout, pollingInterval).Should(BeNil())
 
-	currentAccessRequest := &libsveltosv1alpha1.AccessRequest{}
+	currentAccessRequest := &libsveltosv1beta1.AccessRequest{}
 	Expect(k8sClient.Get(context.TODO(),
 		types.NamespacedName{Namespace: accessRequest.Namespace, Name: accessRequest.Name},
 		currentAccessRequest)).To(Succeed())
@@ -124,7 +124,7 @@ func verifyAccessRequest(accessRequest *libsveltosv1alpha1.AccessRequest) {
 	Expect(ok).To(BeTrue())
 
 	Byf("Verifying AccessRequest Status")
-	currentAccessRequest = &libsveltosv1alpha1.AccessRequest{}
+	currentAccessRequest = &libsveltosv1beta1.AccessRequest{}
 	Expect(k8sClient.Get(context.TODO(),
 		types.NamespacedName{Namespace: accessRequest.Namespace, Name: accessRequest.Name},
 		currentAccessRequest)).To(Succeed())
@@ -132,15 +132,15 @@ func verifyAccessRequest(accessRequest *libsveltosv1alpha1.AccessRequest) {
 	Expect(currentAccessRequest.Status.SecretRef).ToNot(BeNil())
 }
 
-func deleteAndVerifyCleanup(accessRequest *libsveltosv1alpha1.AccessRequest) {
+func deleteAndVerifyCleanup(accessRequest *libsveltosv1beta1.AccessRequest) {
 	Byf("Get AccessRequest")
 	Eventually(func() error {
-		currentAccessRequest := &libsveltosv1alpha1.AccessRequest{}
+		currentAccessRequest := &libsveltosv1beta1.AccessRequest{}
 		return k8sClient.Get(context.TODO(),
 			types.NamespacedName{Namespace: accessRequest.Namespace, Name: accessRequest.Name}, currentAccessRequest)
 	}, timeout, pollingInterval).Should(BeNil())
 
-	currentAccessRequest := &libsveltosv1alpha1.AccessRequest{}
+	currentAccessRequest := &libsveltosv1beta1.AccessRequest{}
 	Expect(k8sClient.Get(context.TODO(),
 		types.NamespacedName{Namespace: accessRequest.Namespace, Name: accessRequest.Name},
 		currentAccessRequest)).To(Succeed())
@@ -180,21 +180,18 @@ func deleteAndVerifyCleanup(accessRequest *libsveltosv1alpha1.AccessRequest) {
 }
 
 func getRoleRequest(namePrefix, saNamespace, saName string,
-	clusterLabels map[string]string) *libsveltosv1alpha1.RoleRequest {
+	clusterLabels map[string]string) *libsveltosv1beta1.RoleRequest {
 
-	selector := ""
-	for k := range clusterLabels {
-		if selector != "" {
-			selector += ","
-		}
-		selector += fmt.Sprintf("%s=%s", k, clusterLabels[k])
-	}
-	roleRequest := &libsveltosv1alpha1.RoleRequest{
+	roleRequest := &libsveltosv1beta1.RoleRequest{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: namePrefix + randomString(),
 		},
-		Spec: libsveltosv1alpha1.RoleRequestSpec{
-			ClusterSelector:         libsveltosv1alpha1.Selector(selector),
+		Spec: libsveltosv1beta1.RoleRequestSpec{
+			ClusterSelector: libsveltosv1beta1.Selector{
+				LabelSelector: metav1.LabelSelector{
+					MatchLabels: clusterLabels,
+				},
+			},
 			ServiceAccountNamespace: saNamespace,
 			ServiceAccountName:      saName,
 		},

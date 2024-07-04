@@ -25,14 +25,14 @@ import (
 	"sigs.k8s.io/cluster-api/util/patch"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	libsveltosv1alpha1 "github.com/projectsveltos/libsveltos/api/v1alpha1"
+	libsveltosv1beta1 "github.com/projectsveltos/libsveltos/api/v1beta1"
 )
 
 // AccessRequestScopeParams defines the input parameters used to create a new AccessRequest Scope.
 type AccessRequestScopeParams struct {
 	Client         client.Client
 	Logger         logr.Logger
-	AccessRequest  *libsveltosv1alpha1.AccessRequest
+	AccessRequest  *libsveltosv1beta1.AccessRequest
 	ControllerName string
 }
 
@@ -64,7 +64,7 @@ type AccessRequestScope struct {
 	logr.Logger
 	client         client.Client
 	patchHelper    *patch.Helper
-	AccessRequest  *libsveltosv1alpha1.AccessRequest
+	AccessRequest  *libsveltosv1beta1.AccessRequest
 	controllerName string
 }
 

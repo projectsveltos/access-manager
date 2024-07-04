@@ -50,7 +50,7 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/projectsveltos/access-manager/controllers"
-	libsveltosv1alpha1 "github.com/projectsveltos/libsveltos/api/v1alpha1"
+	libsveltosv1beta1 "github.com/projectsveltos/libsveltos/api/v1beta1"
 	"github.com/projectsveltos/libsveltos/lib/crd"
 	"github.com/projectsveltos/libsveltos/lib/deployer"
 	"github.com/projectsveltos/libsveltos/lib/logsettings"
@@ -125,7 +125,7 @@ func main() {
 	controllers.RegisterFeatures(d, setupLog)
 
 	logsettings.RegisterForLogSettings(ctx,
-		libsveltosv1alpha1.ComponentAccessManager, ctrl.Log.WithName("log-setter"),
+		libsveltosv1beta1.ComponentAccessManager, ctrl.Log.WithName("log-setter"),
 		ctrl.GetConfigOrDie())
 
 	if err = (&controllers.AccessRequestReconciler{
@@ -142,7 +142,7 @@ func main() {
 		Client:                  mgr.GetClient(),
 		Scheme:                  mgr.GetScheme(),
 		Deployer:                d,
-		RoleRequests:            make(map[corev1.ObjectReference]libsveltosv1alpha1.Selector),
+		RoleRequests:            make(map[corev1.ObjectReference]libsveltosv1beta1.Selector),
 		ClusterMap:              make(map[corev1.ObjectReference]*libsveltosset.Set),
 		RoleRequestClusterMap:   make(map[corev1.ObjectReference]*libsveltosset.Set),
 		ReferenceMap:            make(map[corev1.ObjectReference]*libsveltosset.Set),

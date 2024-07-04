@@ -26,23 +26,23 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
 	"github.com/projectsveltos/access-manager/controllers"
-	libsveltosv1alpha1 "github.com/projectsveltos/libsveltos/api/v1alpha1"
+	libsveltosv1beta1 "github.com/projectsveltos/libsveltos/api/v1beta1"
 )
 
 var _ = Describe("AccessRequest Predicates: IfNewDeletedOrSpecChange", func() {
 	var logger logr.Logger
-	var accessRequest *libsveltosv1alpha1.AccessRequest
+	var accessRequest *libsveltosv1beta1.AccessRequest
 
 	BeforeEach(func() {
 		logger = textlogger.NewLogger(textlogger.NewConfig(textlogger.Verbosity(1)))
-		accessRequest = &libsveltosv1alpha1.AccessRequest{
+		accessRequest = &libsveltosv1beta1.AccessRequest{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: randomString(),
 			},
-			Spec: libsveltosv1alpha1.AccessRequestSpec{
+			Spec: libsveltosv1beta1.AccessRequestSpec{
 				Namespace: randomString(),
 				Name:      randomString(),
-				Type:      libsveltosv1alpha1.SveltosAgentRequest,
+				Type:      libsveltosv1beta1.SveltosAgentRequest,
 			},
 		}
 	})

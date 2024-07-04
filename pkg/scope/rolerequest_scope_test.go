@@ -27,18 +27,18 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/projectsveltos/access-manager/pkg/scope"
-	libsveltosv1alpha1 "github.com/projectsveltos/libsveltos/api/v1alpha1"
+	libsveltosv1beta1 "github.com/projectsveltos/libsveltos/api/v1beta1"
 )
 
 var _ = Describe("RoleRequestScope", func() {
-	var roleRequest *libsveltosv1alpha1.RoleRequest
+	var roleRequest *libsveltosv1beta1.RoleRequest
 	var c client.Client
 	var logger logr.Logger
 
 	BeforeEach(func() {
 		logger = textlogger.NewLogger(textlogger.NewConfig(textlogger.Verbosity(1)))
 
-		roleRequest = &libsveltosv1alpha1.RoleRequest{
+		roleRequest = &libsveltosv1beta1.RoleRequest{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: classifierNamePrefix + randomString(),
 			},
@@ -124,18 +124,18 @@ var _ = Describe("RoleRequestScope", func() {
 		clusterNamespace := randomString()
 		clusterName := randomString()
 		hash := []byte(randomString())
-		clusterInfo := libsveltosv1alpha1.ClusterInfo{
+		clusterInfo := libsveltosv1beta1.ClusterInfo{
 			Cluster: corev1.ObjectReference{Namespace: clusterNamespace, Name: clusterName},
-			Status:  libsveltosv1alpha1.SveltosStatusProvisioned,
+			Status:  libsveltosv1beta1.SveltosStatusProvisioned,
 			Hash:    hash,
 		}
-		scope.SetClusterInfo([]libsveltosv1alpha1.ClusterInfo{clusterInfo})
+		scope.SetClusterInfo([]libsveltosv1beta1.ClusterInfo{clusterInfo})
 		Expect(roleRequest.Status.ClusterInfo).ToNot(BeNil())
 		Expect(len(roleRequest.Status.ClusterInfo)).To(Equal(1))
 		Expect(roleRequest.Status.ClusterInfo[0].Cluster.Namespace).To(Equal(clusterNamespace))
 		Expect(roleRequest.Status.ClusterInfo[0].Cluster.Name).To(Equal(clusterName))
 		Expect(roleRequest.Status.ClusterInfo[0].Hash).To(Equal(hash))
-		Expect(roleRequest.Status.ClusterInfo[0].Status).To(Equal(libsveltosv1alpha1.SveltosStatusProvisioned))
+		Expect(roleRequest.Status.ClusterInfo[0].Status).To(Equal(libsveltosv1beta1.SveltosStatusProvisioned))
 	})
 
 	It("SetFailureMessage sets RoleRequest.Status.FailureMessage", func() {

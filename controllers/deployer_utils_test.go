@@ -34,7 +34,7 @@ import (
 	"k8s.io/klog/v2/textlogger"
 
 	"github.com/projectsveltos/access-manager/controllers"
-	libsveltosv1alpha1 "github.com/projectsveltos/libsveltos/api/v1alpha1"
+	libsveltosv1beta1 "github.com/projectsveltos/libsveltos/api/v1beta1"
 	"github.com/projectsveltos/libsveltos/lib/deployer"
 	"github.com/projectsveltos/libsveltos/lib/roles"
 
@@ -103,7 +103,7 @@ var _ = Describe("Deployer utils", func() {
 				Namespace: randomString(),
 				Name:      randomString(),
 			},
-			Type: libsveltosv1alpha1.ClusterProfileSecretType,
+			Type: libsveltosv1beta1.ClusterProfileSecretType,
 		}
 
 		roleRequest := getRoleRequest([]corev1.ConfigMap{*configMap}, []corev1.Secret{*secret},
@@ -151,7 +151,7 @@ var _ = Describe("Deployer utils", func() {
 				Namespace: clusterNamespace,
 				Name:      randomString(),
 			},
-			Type: libsveltosv1alpha1.ClusterProfileSecretType,
+			Type: libsveltosv1beta1.ClusterProfileSecretType,
 		}
 
 		roleRequest := getRoleRequest([]corev1.ConfigMap{*configMap}, []corev1.Secret{*secret},
@@ -220,7 +220,7 @@ var _ = Describe("Deployer utils", func() {
 				Namespace: randomString(),
 				Name:      randomString(),
 			},
-			Type: libsveltosv1alpha1.ClusterProfileSecretType,
+			Type: libsveltosv1beta1.ClusterProfileSecretType,
 		}
 
 		c := fake.NewClientBuilder().WithScheme(scheme).Build()
@@ -258,7 +258,7 @@ var _ = Describe("Deployer utils", func() {
 		secretName := types.NamespacedName{Namespace: wrongSecretType.Namespace, Name: wrongSecretType.Name}
 		_, err := controllers.GetSecret(context.TODO(), c, secretName)
 		Expect(err).ToNot(BeNil())
-		Expect(err.Error()).To(Equal(libsveltosv1alpha1.ErrSecretTypeNotSupported.Error()))
+		Expect(err.Error()).To(Equal(libsveltosv1beta1.ErrSecretTypeNotSupported.Error()))
 	})
 
 	It("deployReferencedResourceInManagedCluster deploys all resources contained in referenced ConfigMaps/Secrets", func() {
@@ -383,10 +383,10 @@ var _ = Describe("Deployer utils", func() {
 	})
 
 	It("getReferenceResourceNamespace returns the referenced resource namespace when set. cluster namespace otherwise.", func() {
-		referecedResource := libsveltosv1alpha1.PolicyRef{
+		referecedResource := libsveltosv1beta1.PolicyRef{
 			Namespace: "",
 			Name:      randomString(),
-			Kind:      string(libsveltosv1alpha1.ConfigMapReferencedResourceKind),
+			Kind:      string(libsveltosv1beta1.ConfigMapReferencedResourceKind),
 		}
 
 		clusterNamespace := randomString()
@@ -448,13 +448,13 @@ var _ = Describe("Deployer utils", func() {
 		// passing random value for kubeconfig) and the tokenRequest expiration time.
 		// Creating the secret is essential as IsTimeExpired expects Secret to be present.
 		Expect(controllers.CreateSecretWithKubeconfig(context.TODO(), testEnv.Client, roleRequest,
-			clusterNamespace, clusterName, libsveltosv1alpha1.ClusterTypeSveltos,
+			clusterNamespace, clusterName, libsveltosv1beta1.ClusterTypeSveltos,
 			[]byte(randomString()), &tokenRequest.Status, logger)).To(Succeed())
 
 		// Wait for cache to sync
 		Eventually(func() bool {
 			secret, err := controllers.GetSecretWithKubeconfig(context.TODO(),
-				testEnv.Client, roleRequest, clusterNamespace, clusterName, libsveltosv1alpha1.ClusterTypeSveltos, logger)
+				testEnv.Client, roleRequest, clusterNamespace, clusterName, libsveltosv1beta1.ClusterTypeSveltos, logger)
 			if err != nil || secret.Data == nil {
 				return false
 			}
@@ -466,7 +466,7 @@ var _ = Describe("Deployer utils", func() {
 
 		// Since expiration time was set in a day, expect result to be false
 		Expect(controllers.IsTimeExpired(context.TODO(), testEnv.Client, roleRequest,
-			clusterNamespace, clusterName, libsveltosv1alpha1.ClusterTypeSveltos, logger)).To(BeFalse())
+			clusterNamespace, clusterName, libsveltosv1beta1.ClusterTypeSveltos, logger)).To(BeFalse())
 	})
 })
 
@@ -500,7 +500,7 @@ func validateLabel(labels map[string]string, key, value string) bool {
 }
 
 func validateClusterRoleBinding(clusterRoleBinding *rbacv1.ClusterRoleBinding,
-	roleRequest *libsveltosv1alpha1.RoleRequest) bool {
+	roleRequest *libsveltosv1beta1.RoleRequest) bool {
 
 	// ClusterRoleBinding name is set to ClusterRole name.
 	// CLusterRoleBinding created for a given ClusterRole points to that ClusterRole
