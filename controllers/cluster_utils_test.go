@@ -114,7 +114,7 @@ var _ = Describe("Cluster utils", func() {
 				Name:      sveltosCluster.Name + sveltosKubeconfigPostfix,
 			},
 			Data: map[string][]byte{
-				"data": randomData,
+				"value": randomData,
 			},
 		}
 
@@ -124,7 +124,7 @@ var _ = Describe("Cluster utils", func() {
 				Name:      cluster.Name + "-kubeconfig",
 			},
 			Data: map[string][]byte{
-				"data": randomData,
+				"value": randomData,
 			},
 		}
 
