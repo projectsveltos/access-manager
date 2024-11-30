@@ -39,11 +39,10 @@ import (
 
 	libsveltosv1beta1 "github.com/projectsveltos/libsveltos/api/v1beta1"
 	"github.com/projectsveltos/libsveltos/lib/deployer"
+	"github.com/projectsveltos/libsveltos/lib/k8s_utils"
 	logs "github.com/projectsveltos/libsveltos/lib/logsettings"
 	"github.com/projectsveltos/libsveltos/lib/roles"
 	libsveltosroles "github.com/projectsveltos/libsveltos/lib/roles"
-	"github.com/projectsveltos/libsveltos/lib/utils"
-	libsveltosutils "github.com/projectsveltos/libsveltos/lib/utils"
 )
 
 const (
@@ -77,12 +76,12 @@ func createServiceAccountInManagedCluster(ctx context.Context, remoteClient clie
 			serviceAccount.Namespace = serviceAccountNamespace
 			serviceAccount.Name = saName
 			serviceAccount.Labels = map[string]string{libsveltosv1beta1.RoleRequestLabel: "ok"}
-			deployer.AddOwnerReference(serviceAccount, roleRequest)
+			k8s_utils.AddOwnerReference(serviceAccount, roleRequest)
 			return remoteClient.Create(ctx, serviceAccount)
 		}
 		return err
 	}
-	deployer.AddOwnerReference(serviceAccount, roleRequest)
+	k8s_utils.AddOwnerReference(serviceAccount, roleRequest)
 	return remoteClient.Update(ctx, serviceAccount)
 }
 
@@ -138,7 +137,7 @@ func createServiceAccountSecretForCluster(ctx context.Context, config *rest.Conf
 	}
 
 	var u *unstructured.Unstructured
-	u, err = libsveltosutils.GetUnstructured(kubeconfigContent)
+	u, err = k8s_utils.GetUnstructured(kubeconfigContent)
 	if err != nil {
 		logger.V(logs.LogInfo).Info(fmt.Sprintf("failed to unstructured for kind Config. Err: %v", err))
 		return err
@@ -160,7 +159,7 @@ func createServiceAccountSecretForCluster(ctx context.Context, config *rest.Conf
 	server := configObject.Clusters[0].Cluster.Server
 
 	var kubeconfig []byte
-	kubeconfig, err = libsveltosutils.GetKubeconfigWithUserToken(ctx, []byte(tokenStatus.Token),
+	kubeconfig, err = k8s_utils.GetKubeconfigWithUserToken(ctx, []byte(tokenStatus.Token),
 		caCrt, serviceAccountName, server)
 	if err != nil {
 		logger.V(logs.LogInfo).Info(fmt.Sprintf("failed to get kubeconfig: %v", err))
@@ -466,7 +465,7 @@ func deployRole(ctx context.Context, remoteConfig *rest.Config, remoteClient cli
 	// If policy already exists, just get current version and update it by overridding
 	// all metadata and spec.
 	// If policy does not exist already, create it
-	dr, err := utils.GetDynamicResourceInterface(remoteConfig, policy.GroupVersionKind(), policy.GetNamespace())
+	dr, err := k8s_utils.GetDynamicResourceInterface(remoteConfig, policy.GroupVersionKind(), policy.GetNamespace())
 	if err != nil {
 		return nil, err
 	}
@@ -477,7 +476,7 @@ func deployRole(ctx context.Context, remoteConfig *rest.Config, remoteClient cli
 		return nil, err
 	}
 
-	deployer.AddOwnerReference(policy, roleRequest)
+	k8s_utils.AddOwnerReference(policy, roleRequest)
 
 	err = updateResource(ctx, dr, policy, logger)
 	if err != nil {
@@ -618,7 +617,7 @@ func collectContent(data map[string]string, logger logr.Logger) ([]*unstructured
 				continue
 			}
 
-			policy, err := utils.GetUnstructured([]byte(elements[i]))
+			policy, err := k8s_utils.GetUnstructured([]byte(elements[i]))
 			if err != nil {
 				logger.Error(err, fmt.Sprintf("failed to get policy from Data %.100s", elements[i]))
 				return nil, err

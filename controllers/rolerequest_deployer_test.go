@@ -40,8 +40,8 @@ import (
 	libsveltosv1beta1 "github.com/projectsveltos/libsveltos/api/v1beta1"
 	"github.com/projectsveltos/libsveltos/lib/deployer"
 	fakedeployer "github.com/projectsveltos/libsveltos/lib/deployer/fake"
+	"github.com/projectsveltos/libsveltos/lib/k8s_utils"
 	"github.com/projectsveltos/libsveltos/lib/roles"
-	"github.com/projectsveltos/libsveltos/lib/utils"
 )
 
 var _ = Describe("Deployer", func() {
@@ -355,7 +355,7 @@ var _ = Describe("Deployer", func() {
 		Expect(addTypeInformationToObject(scheme, roleRequest)).To(Succeed())
 
 		viewClusterRoleName := randomString()
-		clusterRole, err := utils.GetUnstructured([]byte(fmt.Sprintf(viewClusterRole, viewClusterRoleName)))
+		clusterRole, err := k8s_utils.GetUnstructured([]byte(fmt.Sprintf(viewClusterRole, viewClusterRoleName)))
 		Expect(err).To(BeNil())
 
 		// Add labels and OwnerReference to pretend ClusterRole was created by RoleRequest
