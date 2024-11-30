@@ -38,6 +38,7 @@ import (
 	libsveltosv1beta1 "github.com/projectsveltos/libsveltos/api/v1beta1"
 	"github.com/projectsveltos/libsveltos/lib/clusterproxy"
 	"github.com/projectsveltos/libsveltos/lib/deployer"
+	"github.com/projectsveltos/libsveltos/lib/k8s_utils"
 	logs "github.com/projectsveltos/libsveltos/lib/logsettings"
 	"github.com/projectsveltos/libsveltos/lib/roles"
 )
@@ -497,11 +498,11 @@ func removeServiceAccount(ctx context.Context, remoteClient client.Client, roleR
 		}
 	}
 
-	if deployer.IsOnlyOwnerReference(serviceAccount, roleRequest) {
+	if k8s_utils.IsOnlyOwnerReference(serviceAccount, roleRequest) {
 		return remoteClient.Delete(ctx, serviceAccount)
 	}
 
-	deployer.RemoveOwnerReference(serviceAccount, roleRequest)
+	k8s_utils.RemoveOwnerReference(serviceAccount, roleRequest)
 	return remoteClient.Update(ctx, serviceAccount)
 }
 
@@ -574,7 +575,7 @@ func cleanStaleClusterRoleResources(ctx context.Context, remoteClient client.Cli
 			var u unstructured.Unstructured
 			u.SetUnstructuredContent(content)
 
-			if deployer.IsOnlyOwnerReference(&u, roleRequest) {
+			if k8s_utils.IsOnlyOwnerReference(&u, roleRequest) {
 				// First remove ClusterRoleBinding, then ClusterRole cause we find ClusterRoleBinding
 				// only after detecting a ClusterRole needs to be deleted
 				err = deleteClusterRoleBinding(ctx, remoteClient, cr.Name)
@@ -628,7 +629,7 @@ func cleanStaleRoleResources(ctx context.Context, remoteClient client.Client, ro
 			var u unstructured.Unstructured
 			u.SetUnstructuredContent(content)
 
-			if deployer.IsOnlyOwnerReference(&u, roleRequest) {
+			if k8s_utils.IsOnlyOwnerReference(&u, roleRequest) {
 				// First remove RoleBinding, then Role cause we find RoleBinding
 				// only after detecting a Role needs to be deleted
 				err = deleteRoleBinding(ctx, remoteClient, r.Namespace, r.Name)

@@ -40,8 +40,8 @@ import (
 
 	"github.com/projectsveltos/access-manager/pkg/scope"
 	libsveltosv1beta1 "github.com/projectsveltos/libsveltos/api/v1beta1"
+	"github.com/projectsveltos/libsveltos/lib/k8s_utils"
 	logs "github.com/projectsveltos/libsveltos/lib/logsettings"
-	libsveltosutils "github.com/projectsveltos/libsveltos/lib/utils"
 )
 
 const (
@@ -282,7 +282,7 @@ func (r *AccessRequestReconciler) generateKubeconfig(ctx context.Context, access
 
 	var kubeconfig []byte
 	host := fmt.Sprintf("%s:%d", ar.Spec.ControlPlaneEndpoint.Host, ar.Spec.ControlPlaneEndpoint.Port)
-	kubeconfig, err = libsveltosutils.GetKubeconfigWithUserToken(ctx, []byte(tokenRequest.Status.Token), crt, ar.Spec.Name, host)
+	kubeconfig, err = k8s_utils.GetKubeconfigWithUserToken(ctx, []byte(tokenRequest.Status.Token), crt, ar.Spec.Name, host)
 	if err != nil {
 		accessRequestScope.Logger.V(logs.LogInfo).Info(fmt.Sprintf("failed to get kubeconfig: %v", err))
 		return nil, err

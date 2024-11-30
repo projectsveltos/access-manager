@@ -32,14 +32,14 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2/textlogger"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/projectsveltos/access-manager/controllers"
 	libsveltosv1beta1 "github.com/projectsveltos/libsveltos/api/v1beta1"
 	"github.com/projectsveltos/libsveltos/lib/deployer"
+	"github.com/projectsveltos/libsveltos/lib/k8s_utils"
 	"github.com/projectsveltos/libsveltos/lib/roles"
-
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 var _ = Describe("Deployer utils", func() {
@@ -71,7 +71,7 @@ var _ = Describe("Deployer utils", func() {
 			types.NamespacedName{Namespace: controllers.ServiceAccountNamespace, Name: managedClusterSAName},
 			currentServiceAccount)).To(Succeed())
 
-		Expect(deployer.IsOwnerReference(currentServiceAccount, roleRequest)).To(BeTrue())
+		Expect(k8s_utils.IsOwnerReference(currentServiceAccount, roleRequest)).To(BeTrue())
 
 		// returns no error when serviceAccount already exists
 		Expect(controllers.CreateServiceAccountInManagedCluster(context.TODO(), c, roleRequest)).To(Succeed())
