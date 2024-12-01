@@ -50,8 +50,8 @@ import (
 	libsveltosv1beta1 "github.com/projectsveltos/libsveltos/api/v1beta1"
 	"github.com/projectsveltos/libsveltos/lib/crd"
 	"github.com/projectsveltos/libsveltos/lib/deployer"
+	"github.com/projectsveltos/libsveltos/lib/k8s_utils"
 	libsveltosset "github.com/projectsveltos/libsveltos/lib/set"
-	"github.com/projectsveltos/libsveltos/lib/utils"
 )
 
 var (
@@ -101,17 +101,17 @@ var _ = BeforeSuite(func() {
 		}
 	}()
 
-	accessRequestCRD, err := utils.GetUnstructured(crd.GetAccessRequestCRDYAML())
+	accessRequestCRD, err := k8s_utils.GetUnstructured(crd.GetAccessRequestCRDYAML())
 	Expect(err).To(BeNil())
 	Expect(testEnv.Create(ctx, accessRequestCRD)).To(Succeed())
 	waitForObject(context.TODO(), testEnv.Client, accessRequestCRD)
 
-	roleRequestCRD, err := utils.GetUnstructured(crd.GetRoleRequestCRDYAML())
+	roleRequestCRD, err := k8s_utils.GetUnstructured(crd.GetRoleRequestCRDYAML())
 	Expect(err).To(BeNil())
 	Expect(testEnv.Create(ctx, roleRequestCRD)).To(Succeed())
 	waitForObject(context.TODO(), testEnv.Client, roleRequestCRD)
 
-	sveltosClusterCRD, err := utils.GetUnstructured(crd.GetSveltosClusterCRDYAML())
+	sveltosClusterCRD, err := k8s_utils.GetUnstructured(crd.GetSveltosClusterCRDYAML())
 	Expect(err).To(BeNil())
 	Expect(testEnv.Create(ctx, sveltosClusterCRD)).To(Succeed())
 	waitForObject(context.TODO(), testEnv.Client, sveltosClusterCRD)
