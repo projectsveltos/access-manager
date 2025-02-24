@@ -59,16 +59,17 @@ import (
 )
 
 var (
-	setupLog             = ctrl.Log.WithName("setup")
-	diagnosticsAddress   string
-	insecureDiagnostics  bool
-	concurrentReconciles int
-	workers              int
-	restConfigQPS        float32
-	restConfigBurst      int
-	webhookPort          int
-	syncPeriod           time.Duration
-	healthAddr           string
+	setupLog              = ctrl.Log.WithName("setup")
+	diagnosticsAddress    string
+	insecureDiagnostics   bool
+	concurrentReconciles  int
+	workers               int
+	restConfigQPS         float32
+	restConfigBurst       int
+	webhookPort           int
+	syncPeriod            time.Duration
+	healthAddr            string
+	capiOnboardAnnotation string
 )
 
 const (
@@ -142,6 +143,7 @@ func main() {
 		Client:                  mgr.GetClient(),
 		Scheme:                  mgr.GetScheme(),
 		Deployer:                d,
+		CapiOnboardAnnotation:   capiOnboardAnnotation,
 		RoleRequests:            make(map[corev1.ObjectReference]libsveltosv1beta1.Selector),
 		ClusterMap:              make(map[corev1.ObjectReference]*libsveltosset.Set),
 		RoleRequestClusterMap:   make(map[corev1.ObjectReference]*libsveltosset.Set),
@@ -201,6 +203,9 @@ func initFlags(fs *pflag.FlagSet) {
 
 	fs.StringVar(&healthAddr, "health-addr", ":9440",
 		"The address the health endpoint binds to.")
+
+	fs.StringVar(&capiOnboardAnnotation, "capi-onboard-annotation", "",
+		"If provided, Sveltos will only manage CAPI clusters that have this exact annotation.")
 
 	const defautlRestConfigQPS = 20
 	fs.Float32Var(&restConfigQPS, "kube-api-qps", defautlRestConfigQPS,

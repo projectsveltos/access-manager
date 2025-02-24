@@ -65,6 +65,8 @@ type RoleRequestReconciler struct {
 	ConcurrentReconciles int
 	Deployer             deployer.DeployerInterface
 
+	CapiOnboardAnnotation string // when set, only capi clusters with this annotation are considered
+
 	// key: RoleRequest; value RoleRequest Selector
 	RoleRequests map[corev1.ObjectReference]libsveltosv1beta1.Selector
 
@@ -465,7 +467,8 @@ func (r *RoleRequestReconciler) getCurrentReferences(roleRequestScope *scope.Rol
 func (r *RoleRequestReconciler) getMatchingClusters(ctx context.Context, roleRequestScope *scope.RoleRequestScope,
 	logger logr.Logger) ([]corev1.ObjectReference, error) {
 
-	matchingCluster, err := clusterproxy.GetMatchingClusters(ctx, r.Client, roleRequestScope.GetSelector(), "", logger)
+	matchingCluster, err := clusterproxy.GetMatchingClusters(ctx, r.Client, roleRequestScope.GetSelector(), "",
+		r.CapiOnboardAnnotation, logger)
 	if err != nil {
 		return nil, err
 	}
