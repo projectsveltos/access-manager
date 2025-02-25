@@ -270,12 +270,6 @@ deploy-projectsveltos: $(KUSTOMIZE)
 	@echo "Waiting for projectsveltos access-manager to be available..."
 	$(KUBECTL) wait --for=condition=Available deployment/access-manager -n projectsveltos --timeout=$(TIMEOUT)
 
-	@echo "Install sveltos conversion webhook (dev is used for conversion webhook)"
-	$(KUBECTL) apply -f  https://raw.githubusercontent.com/projectsveltos/conversion-webhook/dev/manifest/manifest.yaml
-
-	@echo "Waiting for projectsveltos conversion webhook to be available..."
-	$(KUBECTL) wait --for=condition=Available deployment/conversion-webhook -n projectsveltos --timeout=$(TIMEOUT)
-
 
 set-manifest-image:
 	$(info Updating kustomize image patch file for manager resource)
