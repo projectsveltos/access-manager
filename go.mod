@@ -9,7 +9,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.23.4
 	github.com/onsi/gomega v1.37.0
 	github.com/pkg/errors v0.9.1
-	github.com/projectsveltos/libsveltos v0.51.2-0.20250412140407-19dc5a617e53
+	github.com/projectsveltos/libsveltos v0.52.0
 	github.com/prometheus/client_golang v1.22.0
 	github.com/spf13/pflag v1.0.6
 	golang.org/x/text v0.24.0
@@ -57,7 +57,6 @@ require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect

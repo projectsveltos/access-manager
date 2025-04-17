@@ -41,7 +41,6 @@ import (
 	"github.com/projectsveltos/libsveltos/lib/deployer"
 	"github.com/projectsveltos/libsveltos/lib/k8s_utils"
 	logs "github.com/projectsveltos/libsveltos/lib/logsettings"
-	"github.com/projectsveltos/libsveltos/lib/roles"
 	libsveltosroles "github.com/projectsveltos/libsveltos/lib/roles"
 )
 
@@ -66,7 +65,7 @@ func createServiceAccountInManagedCluster(ctx context.Context, remoteClient clie
 	}
 
 	// Generate the name of the ServiceAccount in the managed cluster.
-	saName := roles.GetServiceAccountNameInManagedCluster(
+	saName := libsveltosroles.GetServiceAccountNameInManagedCluster(
 		roleRequest.Spec.ServiceAccountNamespace, roleRequest.Spec.ServiceAccountName)
 	serviceAccount := &corev1.ServiceAccount{}
 	err = remoteClient.Get(ctx, client.ObjectKey{Namespace: serviceAccountNamespace, Name: saName},
@@ -116,7 +115,7 @@ func createServiceAccountSecretForCluster(ctx context.Context, config *rest.Conf
 	logger = logger.WithValues("serviceaccount", fmt.Sprintf("%s/%s", serviceAccountNamespace, serviceAccountName))
 	logger = logger.WithValues("cluster", fmt.Sprintf("%s/%s", clusterNamespace, clusterName))
 
-	saName := roles.GetServiceAccountNameInManagedCluster(serviceAccountNamespace, serviceAccountName)
+	saName := libsveltosroles.GetServiceAccountNameInManagedCluster(serviceAccountNamespace, serviceAccountName)
 
 	expiration := int64(saExpirationInSecond.Seconds())
 	if roleRequest.Spec.ExpirationSeconds != nil {
@@ -275,7 +274,6 @@ func isTimeExpired(ctx context.Context, c client.Client, roleRequest *libsveltos
 }
 
 // createNamespaceInManagedCluster creates a namespace if it does not exist already
-// No action in DryRun mode.
 func createNamespaceInManagedCluster(ctx context.Context, remoteClient client.Client,
 	namespaceName string) error {
 
@@ -497,7 +495,7 @@ func deployRoleBinding(ctx context.Context, remoteClient client.Client,
 	role *unstructured.Unstructured, roleRequest *libsveltosv1beta1.RoleRequest,
 	logger logr.Logger) (*corev1.ObjectReference, error) {
 
-	saName := roles.GetServiceAccountNameInManagedCluster(roleRequest.Spec.ServiceAccountNamespace,
+	saName := libsveltosroles.GetServiceAccountNameInManagedCluster(roleRequest.Spec.ServiceAccountNamespace,
 		roleRequest.Spec.ServiceAccountName)
 
 	roleBinding := rbacv1.RoleBinding{
@@ -548,7 +546,7 @@ func deployClusterRoleBinding(ctx context.Context, remoteClient client.Client,
 	clusterRole *unstructured.Unstructured, roleRequest *libsveltosv1beta1.RoleRequest,
 	logger logr.Logger) (*corev1.ObjectReference, error) {
 
-	saName := roles.GetServiceAccountNameInManagedCluster(roleRequest.Spec.ServiceAccountNamespace,
+	saName := libsveltosroles.GetServiceAccountNameInManagedCluster(roleRequest.Spec.ServiceAccountNamespace,
 		roleRequest.Spec.ServiceAccountName)
 
 	clusterRoleBinding := rbacv1.ClusterRoleBinding{
