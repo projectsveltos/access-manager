@@ -25,7 +25,7 @@ ARCH ?= amd64
 OS ?= $(shell uname -s | tr A-Z a-z)
 K8S_LATEST_VER ?= $(shell curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)
 export CONTROLLER_IMG ?= $(REGISTRY)/$(IMAGE_NAME)
-TAG ?= v0.52.2
+TAG ?= v0.52.3
 
 .PHONY: all
 all: build
@@ -149,7 +149,7 @@ vet: ## Run go vet against code.
 
 .PHONY: lint
 lint: $(GOLANGCI_LINT) generate ## Lint codebase
-	$(GOLANGCI_LINT) run -v --fast=false --max-issues-per-linter 0 --max-same-issues 0 --timeout 5m	
+	$(GOLANGCI_LINT) run -v --fast=false --max-issues-per-linter 0 --max-same-issues 0 --timeout 5m
 
 .PHONY: check-manifests
 check-manifests: manifests ## Verify manifests file is up to date
@@ -178,7 +178,7 @@ KIND_CLUSTER_YAML ?= test/clusterapi-workload.yaml
 
 .PHONY: test
 test: manifests generate fmt vet $(SETUP_ENVTEST) ## Run uts.
-	KUBEBUILDER_ASSETS="$(KUBEBUILDER_ASSETS)" go test $(shell go list ./... |grep -v test/fv |grep -v test/helpers) $(TEST_ARGS) -coverprofile cover.out 
+	KUBEBUILDER_ASSETS="$(KUBEBUILDER_ASSETS)" go test $(shell go list ./... |grep -v test/fv |grep -v test/helpers) $(TEST_ARGS) -coverprofile cover.out
 
 .PHONY: kind-test
 kind-test: test create-cluster fv ## Build docker image; start kind cluster; load docker image; install all cluster api components and run fv
@@ -224,7 +224,7 @@ delete-cluster: $(KIND) ## Deletes the kind clusters
 ### fv helpers
 
 # In order to avoid this error
-# Error: failed to read "cluster-template-development.yaml" from provider's repository "infrastructure-docker": failed to get GitHub release v1.2.0: rate limit for github api has been reached. 
+# Error: failed to read "cluster-template-development.yaml" from provider's repository "infrastructure-docker": failed to get GitHub release v1.2.0: rate limit for github api has been reached.
 # Please wait one hour or get a personal API token and assign it to the GITHUB_TOKEN environment variable
 #
 # add this target. It needs to be run only when changing cluster-api version. create-cluster target uses the output of this command which is stored within repo
