@@ -84,6 +84,21 @@ var _ = Describe("Deployer", func() {
 		Expect(testEnv.Create(context.TODO(), roleRequest)).To(Succeed())
 		waitForObject(context.TODO(), testEnv.Client, roleRequest)
 
+		cluster := &libsveltosv1beta1.SveltosCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "default",
+				Name:      randomString(),
+			},
+		}
+		Expect(testEnv.Create(context.TODO(), cluster)).To(Succeed())
+		waitForObject(context.TODO(), testEnv.Client, cluster)
+		Expect(addTypeInformationToObject(scheme, cluster)).To(Succeed())
+
+		clusterRef := &corev1.ObjectReference{
+			Namespace: cluster.Namespace, Name: cluster.Name,
+			Kind: libsveltosv1beta1.SveltosClusterKind, APIVersion: libsveltosv1beta1.GroupVersion.String(),
+		}
+
 		h := sha256.New()
 		var config string
 		config += render.AsCode(roleRequest.Spec)
@@ -92,7 +107,7 @@ var _ = Describe("Deployer", func() {
 		h.Write([]byte(config))
 		hash := h.Sum(nil)
 
-		currentHash, err := controllers.RoleRequestHash(ctx, testEnv.Client, randomString(),
+		currentHash, err := controllers.RoleRequestHash(ctx, testEnv.Client, clusterRef,
 			roleRequest, logger)
 		Expect(err).To(BeNil())
 		Expect(reflect.DeepEqual(currentHash, hash)).To(BeTrue())
@@ -507,6 +522,11 @@ var _ = Describe("Deployer", func() {
 		}
 		prepareForTesting(&sveltosCluster)
 
+		clusterRef := &corev1.ObjectReference{
+			Namespace: sveltosCluster.Namespace, Name: sveltosCluster.Name,
+			Kind: libsveltosv1beta1.SveltosClusterKind, APIVersion: libsveltosv1beta1.GroupVersion.String(),
+		}
+
 		roleRequestReconciler := getRoleRequestReconciler(testEnv.Client, dep)
 		roleRequest := getRoleRequest(nil, nil, randomString(), randomString())
 		hour := int64(time.Hour.Seconds())
@@ -514,8 +534,7 @@ var _ = Describe("Deployer", func() {
 		Expect(testEnv.Create(context.Background(), roleRequest))
 		waitForObject(context.TODO(), testEnv.Client, roleRequest)
 
-		hash, err := controllers.RoleRequestHash(context.TODO(), testEnv.Client, sveltosCluster.Namespace,
-			roleRequest, logger)
+		hash, err := controllers.RoleRequestHash(context.TODO(), testEnv.Client, clusterRef, roleRequest, logger)
 		Expect(err).To(BeNil())
 		Expect(testEnv.Get(context.TODO(), types.NamespacedName{Name: roleRequest.Name}, roleRequest)).To(Succeed())
 		roleRequest.Status = libsveltosv1beta1.RoleRequestStatus{

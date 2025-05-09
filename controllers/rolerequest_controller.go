@@ -482,7 +482,7 @@ func (r *RoleRequestReconciler) updateClusterInfo(roleRequestScope *scope.RoleRe
 	roleRequest := roleRequestScope.RoleRequest
 
 	getClusterID := func(cluster corev1.ObjectReference) string {
-		return fmt.Sprintf("%s:%s/%s", getClusterType(&cluster), cluster.Namespace, cluster.Name)
+		return fmt.Sprintf("%s:%s/%s", clusterproxy.GetClusterType(&cluster), cluster.Namespace, cluster.Name)
 	}
 
 	matchingCluster := roleRequest.Status.MatchingClusterRefs

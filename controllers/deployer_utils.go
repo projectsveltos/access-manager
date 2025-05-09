@@ -38,10 +38,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	libsveltosv1beta1 "github.com/projectsveltos/libsveltos/api/v1beta1"
+	"github.com/projectsveltos/libsveltos/lib/clusterproxy"
 	"github.com/projectsveltos/libsveltos/lib/deployer"
 	"github.com/projectsveltos/libsveltos/lib/k8s_utils"
 	logs "github.com/projectsveltos/libsveltos/lib/logsettings"
 	libsveltosroles "github.com/projectsveltos/libsveltos/lib/roles"
+	libsveltostemplate "github.com/projectsveltos/libsveltos/lib/template"
 )
 
 const (
@@ -297,7 +299,7 @@ func createNamespaceInManagedCluster(ctx context.Context, remoteClient client.Cl
 }
 
 // collectReferencedObjects collects all referenced configMaps/secrets in control cluster
-func collectReferencedObjects(ctx context.Context, c client.Client, clusterNamespace string,
+func collectReferencedObjects(ctx context.Context, c client.Client, cluster *corev1.ObjectReference,
 	references []libsveltosv1beta1.PolicyRef, logger logr.Logger) ([]client.Object, error) {
 
 	objects := make([]client.Object, 0)
@@ -305,18 +307,29 @@ func collectReferencedObjects(ctx context.Context, c client.Client, clusterNames
 		var err error
 		var object client.Object
 		reference := &references[i]
-		namespace := getReferenceResourceNamespace(clusterNamespace, reference.Namespace)
+		namespace, err := libsveltostemplate.GetReferenceResourceNamespace(ctx, c, cluster.Namespace,
+			cluster.Name, reference.Namespace, clusterproxy.GetClusterType(cluster))
+		if err != nil {
+			return nil, err
+		}
+
+		name, err := libsveltostemplate.GetReferenceResourceName(ctx, c, cluster.Namespace,
+			cluster.Name, reference.Name, clusterproxy.GetClusterType(cluster))
+		if err != nil {
+			return nil, err
+		}
+
 		if reference.Kind == string(libsveltosv1beta1.ConfigMapReferencedResourceKind) {
 			object, err = getConfigMap(ctx, c,
-				types.NamespacedName{Namespace: namespace, Name: reference.Name})
+				types.NamespacedName{Namespace: namespace, Name: name})
 		} else {
 			object, err = getSecret(ctx, c,
-				types.NamespacedName{Namespace: namespace, Name: reference.Name})
+				types.NamespacedName{Namespace: namespace, Name: name})
 		}
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				logger.V(logs.LogInfo).Info(fmt.Sprintf("%s %s/%s does not exist yet",
-					reference.Kind, reference.Namespace, reference.Name))
+					reference.Kind, namespace, name))
 				continue
 			}
 			return nil, err

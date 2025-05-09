@@ -31,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
+	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	"sigs.k8s.io/cluster-api/util/annotations"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -43,7 +44,7 @@ import (
 	"github.com/projectsveltos/libsveltos/lib/roles"
 )
 
-type getCurrentHash func(ctx context.Context, c client.Client, clusterNamespace string,
+type getCurrentHash func(ctx context.Context, c client.Client, cluster *corev1.ObjectReference,
 	roleRequest *libsveltosv1beta1.RoleRequest, logger logr.Logger) ([]byte, error)
 
 type feature struct {
@@ -103,7 +104,7 @@ func (r *RoleRequestReconciler) undeployRoleRequest(ctx context.Context, roleReq
 	// Get list of clusters where RoleRequest needs to be removed
 	for i := range roleRequest.Status.ClusterInfo {
 		c := &roleRequest.Status.ClusterInfo[i].Cluster
-		_, err := getCluster(ctx, r.Client, c.Namespace, c.Name, getClusterType(c))
+		_, err := getCluster(ctx, r.Client, c.Namespace, c.Name, clusterproxy.GetClusterType(c))
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				logger.V(logs.LogInfo).Info(fmt.Sprintf("cluster %s/%s does not exist", c.Namespace, c.Name))
@@ -146,14 +147,14 @@ func (r *RoleRequestReconciler) undeployRoleRequest(ctx context.Context, roleReq
 
 // roleRequestHash returns the RoleRequest hash. It considers RoleRequest Spec and
 // all referenced resources
-func roleRequestHash(ctx context.Context, c client.Client, clusterNamespace string,
+func roleRequestHash(ctx context.Context, c client.Client, cluster *corev1.ObjectReference,
 	roleRequest *libsveltosv1beta1.RoleRequest, logger logr.Logger) ([]byte, error) {
 
 	h := sha256.New()
 	var config string
 	config += render.AsCode(roleRequest.Spec)
 
-	resources, err := collectReferencedObjects(ctx, c, clusterNamespace, roleRequest.Spec.RoleRefs, logger)
+	resources, err := collectReferencedObjects(ctx, c, cluster, roleRequest.Spec.RoleRefs, logger)
 	if err != nil {
 		logger.V(logs.LogInfo).Info(fmt.Sprintf("failed to collect referenced resources: %v", err))
 		return nil, err
@@ -182,7 +183,7 @@ func (r *RoleRequestReconciler) processRoleRequest(ctx context.Context, roleRequ
 
 	// Get RoleRequest Spec hash (at this very precise moment)
 	var currentHash []byte
-	currentHash, err = roleRequestHash(ctx, r.Client, cluster.Namespace, roleRequestScope.RoleRequest, logger)
+	currentHash, err = roleRequestHash(ctx, r.Client, cluster, roleRequestScope.RoleRequest, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -190,7 +191,9 @@ func (r *RoleRequestReconciler) processRoleRequest(ctx context.Context, roleRequ
 	// If undeploying feature is in progress, wait for it to complete.
 	// Otherwise, if we redeploy feature while same feature is still being cleaned up, if two workers process those request in
 	// parallel some resources might end up missing.
-	if r.Deployer.IsInProgress(cluster.Namespace, cluster.Name, roleRequest.Name, f.id, getClusterType(cluster), true) {
+	if r.Deployer.IsInProgress(cluster.Namespace, cluster.Name, roleRequest.Name, f.id,
+		clusterproxy.GetClusterType(cluster), true) {
+
 		logger.V(logs.LogDebug).Info("cleanup is in progress")
 		return nil, fmt.Errorf("cleanup of %s in cluster still in progress. Wait before redeploying", f.id)
 	}
@@ -205,7 +208,8 @@ func (r *RoleRequestReconciler) processRoleRequest(ctx context.Context, roleRequ
 
 	// Check if TokenRequest is expired. Recreate if so.
 	var timeExpired bool
-	timeExpired, err = isTimeExpired(ctx, r.Client, roleRequest, cluster.Namespace, cluster.Name, getClusterType(cluster), logger)
+	timeExpired, err = isTimeExpired(ctx, r.Client, roleRequest, cluster.Namespace, cluster.Name,
+		clusterproxy.GetClusterType(cluster), logger)
 	if err != nil {
 		return nil, err
 	}
@@ -218,7 +222,7 @@ func (r *RoleRequestReconciler) processRoleRequest(ctx context.Context, roleRequ
 	if !needToRedeploy {
 		logger.V(logs.LogInfo).Info("roleRequest has not changed and timer has not expired ")
 		result = r.Deployer.GetResult(ctx, cluster.Namespace, cluster.Name, roleRequest.Name, f.id,
-			getClusterType(cluster), false)
+			clusterproxy.GetClusterType(cluster), false)
 		status = r.convertResultStatus(result)
 	}
 
@@ -252,8 +256,8 @@ func (r *RoleRequestReconciler) processRoleRequest(ctx context.Context, roleRequ
 
 		// Getting here means either RoleRequest failed to be deployed or RoleRequest has changed.
 		// RoleRequest must be (re)deployed.
-		if err := r.Deployer.Deploy(ctx, cluster.Namespace, cluster.Name,
-			roleRequest.Name, f.id, getClusterType(cluster), false, f.deploy, programDuration, deployer.Options{}); err != nil {
+		if err := r.Deployer.Deploy(ctx, cluster.Namespace, cluster.Name, roleRequest.Name, f.id,
+			clusterproxy.GetClusterType(cluster), false, f.deploy, programDuration, deployer.Options{}); err != nil {
 			return nil, err
 		}
 	}
@@ -287,12 +291,15 @@ func (r *RoleRequestReconciler) removeRoleRequest(ctx context.Context, roleReque
 	// If deploying feature is in progress, wait for it to complete.
 	// Otherwise, if we undeploy feature while same feature is still being deployed, if two workers process those request in
 	// parallel some resources might end stale.
-	if r.Deployer.IsInProgress(cluster.Namespace, cluster.Name, roleRequest.Name, f.id, getClusterType(cluster), false) {
+	if r.Deployer.IsInProgress(cluster.Namespace, cluster.Name, roleRequest.Name, f.id,
+		clusterproxy.GetClusterType(cluster), false) {
+
 		logger.V(logs.LogDebug).Info("deploy is in progress")
 		return fmt.Errorf("deploy of %s in cluster still in progress. Wait before redeploying", f.id)
 	}
 
-	result := r.Deployer.GetResult(ctx, cluster.Namespace, cluster.Name, roleRequest.Name, f.id, getClusterType(cluster), true)
+	result := r.Deployer.GetResult(ctx, cluster.Namespace, cluster.Name, roleRequest.Name, f.id,
+		clusterproxy.GetClusterType(cluster), true)
 	status := r.convertResultStatus(result)
 
 	if status != nil {
@@ -307,8 +314,8 @@ func (r *RoleRequestReconciler) removeRoleRequest(ctx context.Context, roleReque
 	}
 
 	logger.V(logs.LogDebug).Info("queueing request to un-deploy")
-	if err := r.Deployer.Deploy(ctx, cluster.Namespace, cluster.Name, roleRequest.Name, f.id, getClusterType(cluster),
-		true, f.undeploy, programDuration, deployer.Options{}); err != nil {
+	if err := r.Deployer.Deploy(ctx, cluster.Namespace, cluster.Name, roleRequest.Name, f.id,
+		clusterproxy.GetClusterType(cluster), true, f.undeploy, programDuration, deployer.Options{}); err != nil {
 		return err
 	}
 
@@ -348,7 +355,8 @@ func (r *RoleRequestReconciler) canProceed(ctx context.Context, roleRequest *lib
 func (r *RoleRequestReconciler) isPaused(ctx context.Context, cluster *corev1.ObjectReference,
 	roleRequest *libsveltosv1beta1.RoleRequest) (bool, error) {
 
-	isClusterPaused, err := isClusterPaused(ctx, r.Client, cluster.Namespace, cluster.Name, getClusterType(cluster))
+	isClusterPaused, err := isClusterPaused(ctx, r.Client, cluster.Namespace, cluster.Name,
+		clusterproxy.GetClusterType(cluster))
 
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -458,8 +466,17 @@ func deployRoleRequestInCluster(ctx context.Context, c client.Client,
 		return err
 	}
 
+	clusterRef := &corev1.ObjectReference{Namespace: clusterNamespace, Name: clusterName}
+	if clusterType == libsveltosv1beta1.ClusterTypeSveltos {
+		clusterRef.Kind = libsveltosv1beta1.SveltosClusterKind
+		clusterRef.APIVersion = libsveltosv1beta1.GroupVersion.String()
+	} else {
+		clusterRef.Kind = clusterv1.ClusterKind
+		clusterRef.APIVersion = clusterv1.GroupVersion.String()
+	}
+
 	var resources []client.Object
-	resources, err = collectReferencedObjects(ctx, c, clusterNamespace, roleRequest.Spec.RoleRefs, logger)
+	resources, err = collectReferencedObjects(ctx, c, clusterRef, roleRequest.Spec.RoleRefs, logger)
 	if err != nil {
 		logger.V(logs.LogInfo).Info(fmt.Sprintf("failed to collect referenced resources: %v", err))
 		return err
