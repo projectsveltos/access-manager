@@ -44,9 +44,23 @@ import (
 
 var _ = Describe("Deployer utils", func() {
 	var logger logr.Logger
+	var sveltosCluster *libsveltosv1beta1.SveltosCluster
+	var clusterRef *corev1.ObjectReference
 
 	BeforeEach(func() {
 		logger = textlogger.NewLogger(textlogger.NewConfig(textlogger.Verbosity(1)))
+
+		sveltosCluster = &libsveltosv1beta1.SveltosCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: randomString(),
+				Name:      randomString(),
+			},
+		}
+
+		clusterRef = &corev1.ObjectReference{
+			Namespace: sveltosCluster.Namespace, Name: sveltosCluster.Name,
+			Kind: libsveltosv1beta1.SveltosClusterKind, APIVersion: libsveltosv1beta1.GroupVersion.String(),
+		}
 	})
 
 	It("createServiceAccountInManagedCluster creates ServiceAccount", func() {
@@ -109,12 +123,12 @@ var _ = Describe("Deployer utils", func() {
 		roleRequest := getRoleRequest([]corev1.ConfigMap{*configMap}, []corev1.Secret{*secret},
 			randomString(), randomString())
 
-		initObjects := []client.Object{roleRequest}
+		initObjects := []client.Object{roleRequest, sveltosCluster}
 		c := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(initObjects...).
 			WithObjects(initObjects...).Build()
 
 		// No errors when referenced resources do not exist
-		refs, err := controllers.CollectReferencedObjects(context.TODO(), c, randomString(),
+		refs, err := controllers.CollectReferencedObjects(context.TODO(), c, clusterRef,
 			roleRequest.Spec.RoleRefs, logger)
 		Expect(err).To(BeNil())
 		Expect(len(refs)).To(BeZero())
@@ -122,7 +136,7 @@ var _ = Describe("Deployer utils", func() {
 		Expect(c.Create(context.TODO(), configMap)).To(Succeed())
 
 		// No errors when subset of referenced resources do not exist
-		refs, err = controllers.CollectReferencedObjects(context.TODO(), c, randomString(),
+		refs, err = controllers.CollectReferencedObjects(context.TODO(), c, clusterRef,
 			roleRequest.Spec.RoleRefs, logger)
 		Expect(err).To(BeNil())
 		Expect(len(refs)).To(Equal(1))
@@ -130,25 +144,23 @@ var _ = Describe("Deployer utils", func() {
 		Expect(c.Create(context.TODO(), secret)).To(Succeed())
 
 		// No errors when all referenced resources exist
-		refs, err = controllers.CollectReferencedObjects(context.TODO(), c, randomString(),
+		refs, err = controllers.CollectReferencedObjects(context.TODO(), c, clusterRef,
 			roleRequest.Spec.RoleRefs, logger)
 		Expect(err).To(BeNil())
 		Expect(len(refs)).To(Equal(2))
 	})
 
 	It("collectReferencedObjects collects all existing referenced resources gettting from cluster namespace", func() {
-		clusterNamespace := randomString()
-
 		configMap := &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace: clusterNamespace,
+				Namespace: sveltosCluster.Namespace,
 				Name:      randomString(),
 			},
 		}
 
 		secret := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace: clusterNamespace,
+				Namespace: sveltosCluster.Namespace,
 				Name:      randomString(),
 			},
 			Type: libsveltosv1beta1.ClusterProfileSecretType,
@@ -161,12 +173,12 @@ var _ = Describe("Deployer utils", func() {
 			roleRequest.Spec.RoleRefs[i].Namespace = ""
 		}
 
-		initObjects := []client.Object{roleRequest}
+		initObjects := []client.Object{roleRequest, sveltosCluster}
 		c := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(initObjects...).
 			WithObjects(initObjects...).Build()
 
 		// No errors when referenced resources do not exist
-		refs, err := controllers.CollectReferencedObjects(context.TODO(), c, clusterNamespace,
+		refs, err := controllers.CollectReferencedObjects(context.TODO(), c, clusterRef,
 			roleRequest.Spec.RoleRefs, logger)
 		Expect(err).To(BeNil())
 		Expect(len(refs)).To(BeZero())
@@ -174,7 +186,7 @@ var _ = Describe("Deployer utils", func() {
 		Expect(c.Create(context.TODO(), configMap)).To(Succeed())
 
 		// No errors when subset of referenced resources do not exist
-		refs, err = controllers.CollectReferencedObjects(context.TODO(), c, clusterNamespace,
+		refs, err = controllers.CollectReferencedObjects(context.TODO(), c, clusterRef,
 			roleRequest.Spec.RoleRefs, logger)
 		Expect(err).To(BeNil())
 		Expect(len(refs)).To(Equal(1))
@@ -182,7 +194,7 @@ var _ = Describe("Deployer utils", func() {
 		Expect(c.Create(context.TODO(), secret)).To(Succeed())
 
 		// No errors when all referenced resources exist
-		refs, err = controllers.CollectReferencedObjects(context.TODO(), c, clusterNamespace,
+		refs, err = controllers.CollectReferencedObjects(context.TODO(), c, clusterRef,
 			roleRequest.Spec.RoleRefs, logger)
 		Expect(err).To(BeNil())
 		Expect(len(refs)).To(Equal(2))
