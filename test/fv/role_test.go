@@ -61,8 +61,8 @@ var _ = Describe("RoleRequest", func() {
 		namePrefix = "rolerequest-"
 	)
 
-	It("Deploy and updates roles", Label("FV"), func() {
-		Byf("Create a RoleRequest matching Cluster %s/%s", kindWorkloadCluster.Namespace, kindWorkloadCluster.Name)
+	It("Deploy and updates roles", Label("FV", "PULLMODE"), func() {
+		Byf("Create a RoleRequest matching Cluster %s/%s", kindWorkloadCluster.GetNamespace(), kindWorkloadCluster.GetName())
 		saNamespace := randomString()
 		saName := randomString()
 		roleRequest := getRoleRequest(namePrefix, saNamespace, saName, map[string]string{key: value})
@@ -139,12 +139,15 @@ var _ = Describe("RoleRequest", func() {
 			types.NamespacedName{Namespace: "projectsveltos", Name: saNameInManagedCluster},
 			currentServiceAccount)).To(Succeed())
 
-		By(fmt.Sprintf("Verifying Secret for ServiceAccount %s/%s Cluster %s/%s is created in the management cluster",
-			saNamespace, saName, kindWorkloadCluster.Namespace, kindWorkloadCluster.Name))
-		saSecret, err := libsveltosroles.GetSecret(context.TODO(), k8sClient, kindWorkloadCluster.Namespace,
-			kindWorkloadCluster.Name, saNamespace, saName, libsveltosv1beta1.ClusterTypeCapi)
-		Expect(err).To(BeNil())
-		Expect(saSecret).ToNot(BeNil())
+		// In pull mode the Secret with ServiceAccount's Kubeconfig is never created
+		if kindWorkloadCluster.GetKind() != libsveltosv1beta1.SveltosClusterKind {
+			By(fmt.Sprintf("Verifying Secret for ServiceAccount %s/%s Cluster %s/%s is created in the management cluster",
+				saNamespace, saName, kindWorkloadCluster.GetNamespace(), kindWorkloadCluster.GetName()))
+			saSecret, err := libsveltosroles.GetSecret(context.TODO(), k8sClient, kindWorkloadCluster.GetNamespace(),
+				kindWorkloadCluster.GetName(), saNamespace, saName, libsveltosv1beta1.ClusterTypeCapi)
+			Expect(err).To(BeNil())
+			Expect(saSecret).ToNot(BeNil())
+		}
 
 		By("Updating ConfigMap to reference different Role")
 		Expect(k8sClient.Get(context.TODO(),

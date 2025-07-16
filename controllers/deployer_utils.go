@@ -56,6 +56,25 @@ const (
 	expirationKey        = "expirationTime"
 )
 
+func getServiceAccountToDeploy(roleRequest *libsveltosv1beta1.RoleRequest) *corev1.ServiceAccount {
+	saName := libsveltosroles.GetServiceAccountNameInManagedCluster(
+		roleRequest.Spec.ServiceAccountNamespace, roleRequest.Spec.ServiceAccountName)
+
+	toDeploy := &corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      saName,
+			Namespace: serviceAccountNamespace,
+			Labels: map[string]string{
+				libsveltosv1beta1.RoleRequestLabel: "ok",
+			},
+		},
+	}
+	k8s_utils.AddOwnerReference(toDeploy, roleRequest)
+
+	addTypeInformationToObject(getManagementClusterScheme(), toDeploy)
+	return toDeploy
+}
+
 // createServiceAccountInManagedCluster create a ServiceAccount with passed in name in the
 // projectsveltos namespace
 func createServiceAccountInManagedCluster(ctx context.Context, remoteClient client.Client,
@@ -261,7 +280,7 @@ func isTimeExpired(ctx context.Context, c client.Client, roleRequest *libsveltos
 	expirationTime, err := getCurrentExpirationTime(ctx, c, roleRequest, clusterNamespace, clusterName,
 		clusterType, logger)
 	if err != nil {
-		logger.V(logs.LogInfo).Info(fmt.Sprintf("failed to get epiration time: %v", err))
+		logger.V(logs.LogInfo).Info(fmt.Sprintf("failed to get expiration time: %v", err))
 		return false, err
 	}
 
@@ -370,12 +389,12 @@ func deployReferencedResourceInManagedCluster(ctx context.Context, remoteRestCon
 	var deployedResources []corev1.ObjectReference
 	var err error
 	switch referencedResource.GetObjectKind().GroupVersionKind().Kind {
-	case "ConfigMap":
+	case configMapKind:
 		configMap := referencedResource.(*corev1.ConfigMap)
 		l := logger.WithValues("configMapNamespace", configMap.Namespace, "configMapName", configMap.Name)
 		l.V(logs.LogDebug).Info("deploying ConfigMap content")
 		deployedResources, err = deployContentOfConfigMap(ctx, remoteRestConfig, remoteClient, configMap, roleRequest, l)
-	case "Secret":
+	case secretKind:
 		secret := referencedResource.(*corev1.Secret)
 		l := logger.WithValues("secretNamespace", secret.Namespace, "secretName", secret.Name)
 		l.V(logs.LogDebug).Info("deploying Secret content")
@@ -504,14 +523,11 @@ func deployRole(ctx context.Context, remoteConfig *rest.Config, remoteClient cli
 	return []corev1.ObjectReference{roleRef, *clusterRoleBindingRef}, err
 }
 
-func deployRoleBinding(ctx context.Context, remoteClient client.Client,
-	role *unstructured.Unstructured, roleRequest *libsveltosv1beta1.RoleRequest,
-	logger logr.Logger) (*corev1.ObjectReference, error) {
-
+func getRoleBinding(role *unstructured.Unstructured, roleRequest *libsveltosv1beta1.RoleRequest) *rbacv1.RoleBinding {
 	saName := libsveltosroles.GetServiceAccountNameInManagedCluster(roleRequest.Spec.ServiceAccountNamespace,
 		roleRequest.Spec.ServiceAccountName)
 
-	roleBinding := rbacv1.RoleBinding{
+	return &rbacv1.RoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: role.GetNamespace(),
 			Name:      role.GetName(),
@@ -530,39 +546,13 @@ func deployRoleBinding(ctx context.Context, remoteClient client.Client,
 			},
 		},
 	}
-
-	roleBindingRef := &corev1.ObjectReference{
-		Name:      roleBinding.Name,
-		Namespace: roleBinding.Namespace,
-		Kind:      roleKind,
-	}
-
-	currentRoleBinding := &rbacv1.RoleBinding{}
-	err := remoteClient.Get(ctx, types.NamespacedName{Namespace: roleBinding.Namespace, Name: roleBinding.Name},
-		currentRoleBinding)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			logger.V(logs.LogDebug).Info("creating roleBinding")
-			return roleBindingRef, remoteClient.Create(ctx, &roleBinding)
-		}
-		return nil, err
-	}
-
-	currentRoleBinding.RoleRef = roleBinding.RoleRef
-	currentRoleBinding.Subjects = roleBinding.Subjects
-	currentRoleBinding.Labels = map[string]string{libsveltosv1beta1.RoleRequestLabel: "ok"}
-	logger.V(logs.LogDebug).Info("updating roleBinding")
-	return roleBindingRef, remoteClient.Update(ctx, currentRoleBinding)
 }
 
-func deployClusterRoleBinding(ctx context.Context, remoteClient client.Client,
-	clusterRole *unstructured.Unstructured, roleRequest *libsveltosv1beta1.RoleRequest,
-	logger logr.Logger) (*corev1.ObjectReference, error) {
-
+func getClusterRoleBinding(clusterRole *unstructured.Unstructured, roleRequest *libsveltosv1beta1.RoleRequest) *rbacv1.ClusterRoleBinding {
 	saName := libsveltosroles.GetServiceAccountNameInManagedCluster(roleRequest.Spec.ServiceAccountNamespace,
 		roleRequest.Spec.ServiceAccountName)
 
-	clusterRoleBinding := rbacv1.ClusterRoleBinding{
+	return &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   clusterRole.GetName(),
 			Labels: map[string]string{libsveltosv1beta1.RoleRequestLabel: "ok"},
@@ -580,6 +570,43 @@ func deployClusterRoleBinding(ctx context.Context, remoteClient client.Client,
 			},
 		},
 	}
+}
+
+func deployRoleBinding(ctx context.Context, remoteClient client.Client,
+	role *unstructured.Unstructured, roleRequest *libsveltosv1beta1.RoleRequest,
+	logger logr.Logger) (*corev1.ObjectReference, error) {
+
+	roleBinding := getRoleBinding(role, roleRequest)
+
+	roleBindingRef := &corev1.ObjectReference{
+		Name:      roleBinding.Name,
+		Namespace: roleBinding.Namespace,
+		Kind:      roleKind,
+	}
+
+	currentRoleBinding := &rbacv1.RoleBinding{}
+	err := remoteClient.Get(ctx, types.NamespacedName{Namespace: roleBinding.Namespace, Name: roleBinding.Name},
+		currentRoleBinding)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			logger.V(logs.LogDebug).Info("creating roleBinding")
+			return roleBindingRef, remoteClient.Create(ctx, roleBinding)
+		}
+		return nil, err
+	}
+
+	currentRoleBinding.RoleRef = roleBinding.RoleRef
+	currentRoleBinding.Subjects = roleBinding.Subjects
+	currentRoleBinding.Labels = map[string]string{libsveltosv1beta1.RoleRequestLabel: "ok"}
+	logger.V(logs.LogDebug).Info("updating roleBinding")
+	return roleBindingRef, remoteClient.Update(ctx, currentRoleBinding)
+}
+
+func deployClusterRoleBinding(ctx context.Context, remoteClient client.Client,
+	clusterRole *unstructured.Unstructured, roleRequest *libsveltosv1beta1.RoleRequest,
+	logger logr.Logger) (*corev1.ObjectReference, error) {
+
+	clusterRoleBinding := getClusterRoleBinding(clusterRole, roleRequest)
 
 	clusterRoleBindingRef := &corev1.ObjectReference{
 		Name:      clusterRoleBinding.Name,
@@ -594,7 +621,7 @@ func deployClusterRoleBinding(ctx context.Context, remoteClient client.Client,
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			logger.V(logs.LogDebug).Info("creating clusteRoleBinding")
-			return clusterRoleBindingRef, remoteClient.Create(ctx, &clusterRoleBinding)
+			return clusterRoleBindingRef, remoteClient.Create(ctx, clusterRoleBinding)
 		}
 		return nil, err
 	}

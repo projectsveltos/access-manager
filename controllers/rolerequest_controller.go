@@ -55,6 +55,8 @@ const (
 	// normalRequeueAfter is how long to wait before checking again to see if the cluster can be moved
 	// to ready after or workload features (for instance ingress or reporter) have failed
 	normalRequeueAfter = 20 * time.Second
+
+	configurationHash = "configurationHash"
 )
 
 // RoleRequestReconciler reconciles a RoleRequest object
@@ -114,6 +116,10 @@ type RoleRequestReconciler struct {
 //+kubebuilder:rbac:groups=lib.projectsveltos.io,resources=rolerequests/finalizers,verbs=update
 //+kubebuilder:rbac:groups=lib.projectsveltos.io,resources=sveltosclusters,verbs=get;watch;list
 //+kubebuilder:rbac:groups=lib.projectsveltos.io,resources=sveltosclusters/status,verbs=get;watch;list
+//+kubebuilder:rbac:groups=lib.projectsveltos.io,resources=configurationgroups,verbs=get;list;watch;create;delete;update;patch
+//+kubebuilder:rbac:groups=lib.projectsveltos.io,resources=configurationgroups/status,verbs=get;list;watch
+//+kubebuilder:rbac:groups=lib.projectsveltos.io,resources=configurationbundles,verbs=get;list;watch;create;delete;update;patch
+//+kubebuilder:rbac:groups=lib.projectsveltos.io,resources=configurationbundles/status,verbs=get;list;watch;update
 //+kubebuilder:rbac:groups=cluster.x-k8s.io,resources=clusters,verbs=get;watch;list
 //+kubebuilder:rbac:groups=cluster.x-k8s.io,resources=clusters/status,verbs=get;watch;list
 //+kubebuilder:rbac:groups=cluster.x-k8s.io,resources=machines,verbs=get;watch;list
@@ -257,6 +263,7 @@ func (r *RoleRequestReconciler) reconcileNormal(
 	// Find when next TokenRequest will expire (if any) and requeue this roleRequest
 	// for reconciliation then. If no other change happens till then, TokenRequest must
 	// be recreated before token expires.
+	// In pull mode this will always return nil.
 	var nextExpirationTime *time.Duration
 	nextExpirationTime, err = r.getClosestExpirationTime(ctx, roleRequestScope, logger)
 	if err != nil {

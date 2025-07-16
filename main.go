@@ -119,6 +119,8 @@ func main() {
 		os.Exit(1)
 	}
 
+	controllers.SetManagementClusterAccess(mgr.GetClient(), mgr.GetConfig())
+
 	// Setup the context that's going to be used in controllers and for the manager.
 	ctx := ctrl.SetupSignalHandler()
 
@@ -273,7 +275,10 @@ func isCAPIInstalled(ctx context.Context, c client.Client) (bool, error) {
 }
 
 // capiCRDHandler restarts process if a CAPI CRD is updated
-func capiCRDHandler(gvk *schema.GroupVersionKind) {
+func capiCRDHandler(gvk *schema.GroupVersionKind, action crd.ChangeType) {
+	if action == crd.Modify {
+		return
+	}
 	if gvk.Group == clusterv1.GroupVersion.Group {
 		if killErr := syscall.Kill(syscall.Getpid(), syscall.SIGTERM); killErr != nil {
 			panic("kill -TERM failed")

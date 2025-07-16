@@ -38,20 +38,20 @@ var _ = Describe("RoleRequest", func() {
 		namePrefix = "rolerequest-per-cluster"
 	)
 
-	It("Deploy and updates roles. Referenced resources' namespaces not set", Label("FV"), func() {
+	It("Deploy and updates roles. Referenced resources' namespaces not set", Label("FV", "PULLMODE"), func() {
 		// This test does not set namespace in the referenced ConfigMap/Secret.
 		// That means Sveltos will look for those resources in the cluster namespace at the deployment time.
-		Byf("Create a RoleRequest matching Cluster %s/%s", kindWorkloadCluster.Namespace, kindWorkloadCluster.Name)
+		Byf("Create a RoleRequest matching Cluster %s/%s", kindWorkloadCluster.GetNamespace(), kindWorkloadCluster.GetName())
 		saNamespace := randomString()
 		saName := randomString()
 		roleRequest := getRoleRequest(namePrefix, saNamespace, saName, map[string]string{key: value})
 		Expect(k8sClient.Create(context.TODO(), roleRequest)).To(Succeed())
 
 		roleName := randomString()
-		editRole := fmt.Sprintf(editRoleTemplate, roleName, kindWorkloadCluster.Namespace)
+		editRole := fmt.Sprintf(editRoleTemplate, roleName, kindWorkloadCluster.GetNamespace())
 
-		Byf("Create a configMap with a Role in the cluster's namespace %s", kindWorkloadCluster.Namespace)
-		configMap := createConfigMapWithPolicy(kindWorkloadCluster.Namespace, namePrefix+randomString(), editRole)
+		Byf("Create a configMap with a Role in the cluster's namespace %s", kindWorkloadCluster.GetNamespace())
+		configMap := createConfigMapWithPolicy(kindWorkloadCluster.GetNamespace(), namePrefix+randomString(), editRole)
 		Expect(k8sClient.Create(context.TODO(), configMap)).To(Succeed())
 		currentConfigMap := &corev1.ConfigMap{}
 		Expect(k8sClient.Get(context.TODO(),
@@ -81,13 +81,13 @@ var _ = Describe("RoleRequest", func() {
 		Eventually(func() error {
 			currentRole := &rbacv1.Role{}
 			return workloadClient.Get(context.TODO(),
-				types.NamespacedName{Namespace: kindWorkloadCluster.Namespace, Name: roleName}, currentRole)
+				types.NamespacedName{Namespace: kindWorkloadCluster.GetNamespace(), Name: roleName}, currentRole)
 		}, timeout, pollingInterval).Should(BeNil())
 
 		Byf("Verifying proper RoleBinding is created in the workload cluster")
 		currentRoleBinding := &rbacv1.RoleBinding{}
 		Expect(workloadClient.Get(context.TODO(),
-			types.NamespacedName{Namespace: kindWorkloadCluster.Namespace, Name: roleName}, currentRoleBinding)).To(Succeed())
+			types.NamespacedName{Namespace: kindWorkloadCluster.GetNamespace(), Name: roleName}, currentRoleBinding)).To(Succeed())
 
 		saNameInManagedCluster := getServiceAccountNameInManagedCluster(
 			roleRequest.Spec.ServiceAccountNamespace, roleRequest.Spec.ServiceAccountName)
@@ -103,20 +103,23 @@ var _ = Describe("RoleRequest", func() {
 			types.NamespacedName{Namespace: "projectsveltos", Name: saNameInManagedCluster},
 			currentServiceAccount)).To(Succeed())
 
-		By(fmt.Sprintf("Verifying Secret for ServiceAccount %s/%s Cluster %s/%s is created in the management cluster",
-			saNamespace, saName, kindWorkloadCluster.Namespace, kindWorkloadCluster.Name))
-		saSecret, err := libsveltosroles.GetSecret(context.TODO(), k8sClient, kindWorkloadCluster.Namespace,
-			kindWorkloadCluster.Name, saNamespace, saName, libsveltosv1beta1.ClusterTypeCapi)
-		Expect(err).To(BeNil())
-		Expect(saSecret).ToNot(BeNil())
+		// In pull mode the Secret with ServiceAccount's Kubeconfig is never created
+		if kindWorkloadCluster.GetKind() != libsveltosv1beta1.SveltosClusterKind {
+			By(fmt.Sprintf("Verifying Secret for ServiceAccount %s/%s Cluster %s/%s is created in the management cluster",
+				saNamespace, saName, kindWorkloadCluster.GetNamespace(), kindWorkloadCluster.GetName()))
+			saSecret, err := libsveltosroles.GetSecret(context.TODO(), k8sClient, kindWorkloadCluster.GetNamespace(),
+				kindWorkloadCluster.GetName(), saNamespace, saName, libsveltosv1beta1.ClusterTypeCapi)
+			Expect(err).To(BeNil())
+			Expect(saSecret).ToNot(BeNil())
+		}
 
 		By("Updating ConfigMap to reference different Role")
 		Expect(k8sClient.Get(context.TODO(),
-			types.NamespacedName{Namespace: kindWorkloadCluster.Namespace, Name: configMap.Name},
+			types.NamespacedName{Namespace: kindWorkloadCluster.GetNamespace(), Name: configMap.Name},
 			currentConfigMap)).To(Succeed())
 		listRoleName := randomString()
-		listRole := fmt.Sprintf(listRoleTemplate, listRoleName, kindWorkloadCluster.Namespace)
-		configMap = createConfigMapWithPolicy(kindWorkloadCluster.Namespace, configMap.Name, listRole)
+		listRole := fmt.Sprintf(listRoleTemplate, listRoleName, kindWorkloadCluster.GetNamespace())
+		configMap = createConfigMapWithPolicy(kindWorkloadCluster.GetNamespace(), configMap.Name, listRole)
 		currentConfigMap.Data = configMap.Data
 		Expect(k8sClient.Update(context.TODO(), currentConfigMap)).To(Succeed())
 
@@ -124,13 +127,13 @@ var _ = Describe("RoleRequest", func() {
 		Eventually(func() bool {
 			currentRole := &rbacv1.Role{}
 			err = workloadClient.Get(context.TODO(),
-				types.NamespacedName{Namespace: kindWorkloadCluster.Namespace, Name: roleName}, currentRole)
+				types.NamespacedName{Namespace: kindWorkloadCluster.GetNamespace(), Name: roleName}, currentRole)
 			return err != nil && apierrors.IsNotFound(err)
 		}, timeout, pollingInterval).Should(BeTrue())
 
 		Byf("Verifying old RoleBinding is removed from the workload cluster")
 		err = workloadClient.Get(context.TODO(),
-			types.NamespacedName{Namespace: kindWorkloadCluster.Namespace, Name: roleName}, currentRoleBinding)
+			types.NamespacedName{Namespace: kindWorkloadCluster.GetNamespace(), Name: roleName}, currentRoleBinding)
 		Expect(err).ToNot(BeNil())
 		Expect(apierrors.IsNotFound(err)).To(BeTrue())
 
@@ -138,12 +141,12 @@ var _ = Describe("RoleRequest", func() {
 		Eventually(func() error {
 			currentRole := &rbacv1.Role{}
 			return workloadClient.Get(context.TODO(),
-				types.NamespacedName{Namespace: kindWorkloadCluster.Namespace, Name: listRoleName}, currentRole)
+				types.NamespacedName{Namespace: kindWorkloadCluster.GetNamespace(), Name: listRoleName}, currentRole)
 		}, timeout, pollingInterval).Should(BeNil())
 
 		Byf("Verifying proper RoleBinding is created in the workload cluster")
 		Expect(workloadClient.Get(context.TODO(),
-			types.NamespacedName{Namespace: kindWorkloadCluster.Namespace, Name: listRoleName}, currentRoleBinding)).To(Succeed())
+			types.NamespacedName{Namespace: kindWorkloadCluster.GetNamespace(), Name: listRoleName}, currentRoleBinding)).To(Succeed())
 
 		Expect(currentRoleBinding.RoleRef.Name).To(Equal(listRoleName))
 		Expect(currentRoleBinding.RoleRef.Kind).To(Equal("Role"))
@@ -166,13 +169,13 @@ var _ = Describe("RoleRequest", func() {
 		Byf("Verifying Role is removed from the workload cluster")
 		currentRole := &rbacv1.Role{}
 		err = workloadClient.Get(context.TODO(),
-			types.NamespacedName{Namespace: kindWorkloadCluster.Namespace, Name: listRoleName}, currentRole)
+			types.NamespacedName{Namespace: kindWorkloadCluster.GetNamespace(), Name: listRoleName}, currentRole)
 		Expect(err).ToNot(BeNil())
 		Expect(apierrors.IsNotFound(err)).To(BeTrue())
 
 		Byf("Verifying RoleBinding is removed from the workload cluster")
 		err = workloadClient.Get(context.TODO(),
-			types.NamespacedName{Namespace: kindWorkloadCluster.Namespace, Name: listRoleName}, currentRoleBinding)
+			types.NamespacedName{Namespace: kindWorkloadCluster.GetNamespace(), Name: listRoleName}, currentRoleBinding)
 		Expect(err).ToNot(BeNil())
 		Expect(apierrors.IsNotFound(err)).To(BeTrue())
 
