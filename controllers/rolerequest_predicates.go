@@ -22,7 +22,7 @@ import (
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
@@ -122,7 +122,7 @@ func (p ClusterPredicate) Create(obj event.TypedCreateEvent[*clusterv1.Cluster])
 	)
 
 	// Only need to trigger a reconcile if the Cluster.Spec.Paused is false
-	if !obj.Object.Spec.Paused {
+	if obj.Object.Spec.Paused == nil || !(*obj.Object.Spec.Paused) {
 		log.V(logs.LogVerbose).Info(
 			"Cluster is not paused.  Will attempt to reconcile associated RoleRequests.",
 		)
@@ -147,7 +147,9 @@ func (p ClusterPredicate) Update(obj event.TypedUpdateEvent[*clusterv1.Cluster])
 	}
 
 	// return true if Cluster.Spec.Paused has changed from true to false
-	if oldCluster.Spec.Paused && !newCluster.Spec.Paused {
+	if oldCluster.Spec.Paused != nil && *oldCluster.Spec.Paused &&
+		newCluster.Spec.Paused != nil && !*newCluster.Spec.Paused {
+
 		log.V(logs.LogVerbose).Info(
 			"Cluster was unpaused. Will attempt to reconcile associated RoleRequests.")
 		return true
