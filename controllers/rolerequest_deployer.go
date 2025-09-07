@@ -32,7 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/util/annotations"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -41,7 +41,6 @@ import (
 	"github.com/projectsveltos/libsveltos/lib/clusterproxy"
 	"github.com/projectsveltos/libsveltos/lib/deployer"
 	"github.com/projectsveltos/libsveltos/lib/k8s_utils"
-	"github.com/projectsveltos/libsveltos/lib/logsettings"
 	logs "github.com/projectsveltos/libsveltos/lib/logsettings"
 	"github.com/projectsveltos/libsveltos/lib/pullmode"
 	"github.com/projectsveltos/libsveltos/lib/roles"
@@ -107,7 +106,7 @@ func (r *RoleRequestReconciler) undeployRoleRequest(ctx context.Context, roleReq
 	// Get list of clusters where RoleRequest needs to be removed
 	for i := range roleRequest.Status.ClusterInfo {
 		c := &roleRequest.Status.ClusterInfo[i].Cluster
-		_, err := getCluster(ctx, r.Client, c.Namespace, c.Name, clusterproxy.GetClusterType(c))
+		_, err := clusterproxy.GetCluster(ctx, r.Client, c.Namespace, c.Name, clusterproxy.GetClusterType(c))
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				logger.V(logs.LogInfo).Info(fmt.Sprintf("cluster %s/%s does not exist", c.Namespace, c.Name))
@@ -348,7 +347,8 @@ func (r *RoleRequestReconciler) proceedDeployingRoleRequestInPullMode(ctx contex
 
 	if pullmodeStatus != nil {
 		logger.V(logs.LogDebug).Info(fmt.Sprintf("agent result is available. updating status: %v", *pullmodeStatus))
-		if *pullmodeStatus == libsveltosv1beta1.FeatureStatusProvisioned {
+		switch *pullmodeStatus {
+		case libsveltosv1beta1.FeatureStatusProvisioned:
 			if err := pullmode.TerminateDeploymentTracking(ctx, r.Client, cluster.Namespace,
 				cluster.Name, libsveltosv1beta1.RoleRequestKind, roleRequest.Name, f.id, logger); err != nil {
 				logger.V(logs.LogDebug).Info(fmt.Sprintf("failed to terminate tracking: %v", err))
@@ -357,16 +357,19 @@ func (r *RoleRequestReconciler) proceedDeployingRoleRequestInPullMode(ctx contex
 			provisioned := libsveltosv1beta1.SveltosStatusProvisioned
 			clusterInfo.Status = provisioned
 			return clusterInfo, nil
-		} else if *pullmodeStatus == libsveltosv1beta1.FeatureStatusProvisioning {
+		case libsveltosv1beta1.FeatureStatusProvisioning:
 			msg := "agent is provisioning the content"
 			logger.V(logs.LogDebug).Info(msg)
 			provisioning := libsveltosv1beta1.SveltosStatusProvisioning
 			clusterInfo.Status = provisioning
 			return clusterInfo, nil
-		} else if *pullmodeStatus == libsveltosv1beta1.FeatureStatusFailed {
+		case libsveltosv1beta1.FeatureStatusFailed:
 			logger.V(logs.LogDebug).Info("agent failed provisioning the content")
 			failed := libsveltosv1beta1.SveltosStatusFailed
 			clusterInfo.Status = failed
+		case libsveltosv1beta1.FeatureStatusFailedNonRetriable, libsveltosv1beta1.FeatureStatusRemoving,
+			libsveltosv1beta1.FeatureStatusAgentRemoving, libsveltosv1beta1.FeatureStatusRemoved:
+			logger.V(logs.LogDebug).Info("proceed deploying")
 		}
 	} else {
 		provisioning := libsveltosv1beta1.SveltosStatusProvisioning
@@ -492,7 +495,7 @@ func (r *RoleRequestReconciler) canProceed(ctx context.Context, roleRequest *lib
 func (r *RoleRequestReconciler) isPaused(ctx context.Context, cluster *corev1.ObjectReference,
 	roleRequest *libsveltosv1beta1.RoleRequest) (bool, error) {
 
-	isClusterPaused, err := isClusterPaused(ctx, r.Client, cluster.Namespace, cluster.Name,
+	isClusterPaused, err := clusterproxy.IsClusterPaused(ctx, r.Client, cluster.Namespace, cluster.Name,
 		clusterproxy.GetClusterType(cluster))
 
 	if err != nil {
@@ -604,7 +607,7 @@ func proceedDeployingRoleRequestInPullMode(ctx context.Context, c client.Client,
 	toDeployServiceAccount := getServiceAccountToDeploy(roleRequest)
 	unstructuredObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&toDeployServiceAccount)
 	if err != nil {
-		logger.V(logsettings.LogDebug).Info(fmt.Sprintf("failed to convert RoleRequest instance to unstructured: %v", err))
+		logger.V(logs.LogDebug).Info(fmt.Sprintf("failed to convert RoleRequest instance to unstructured: %v", err))
 	}
 
 	u := &unstructured.Unstructured{}
@@ -720,14 +723,16 @@ func proceedDeployingRoleRequestInCluster(ctx context.Context, c client.Client,
 	clusterType libsveltosv1beta1.ClusterType, logger logr.Logger,
 ) error {
 
-	remoteClient, err := getKubernetesClient(ctx, c, c.Scheme(), clusterNamespace, clusterName, clusterType, logger)
+	remoteClient, err := clusterproxy.GetKubernetesClient(ctx, c, clusterNamespace, clusterName, "", "",
+		clusterType, logger)
 	if err != nil {
 		logger.V(logs.LogInfo).Info(fmt.Sprintf("failed to get remote client: %v", err))
 		return err
 	}
 
 	var remoteRestConfig *rest.Config
-	remoteRestConfig, err = getKubernetesRestConfig(ctx, c, clusterNamespace, clusterName, clusterType, logger)
+	remoteRestConfig, err = clusterproxy.GetKubernetesRestConfig(ctx, c, clusterNamespace, clusterName, "", "",
+		clusterType, logger)
 	if err != nil {
 		logger.V(logs.LogInfo).Info(fmt.Sprintf("failed to get remote restConfig: %v", err))
 		return err
@@ -1014,7 +1019,8 @@ func undeployRoleRequestFromCluster(ctx context.Context, c client.Client,
 		return undeployRoleRequestInPullMode(ctx, c, clusterNamespace, clusterName, roleRequest, logger)
 	}
 
-	remoteClient, err := getKubernetesClient(ctx, c, c.Scheme(), clusterNamespace, clusterName, clusterType, logger)
+	remoteClient, err := clusterproxy.GetKubernetesClient(ctx, c, clusterNamespace, clusterName, "", "",
+		clusterType, logger)
 	if err != nil {
 		logger.V(logs.LogInfo).Info(fmt.Sprintf("failed to get remote client: %v", err))
 		return err

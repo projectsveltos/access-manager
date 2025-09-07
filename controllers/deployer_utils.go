@@ -150,7 +150,8 @@ func createServiceAccountSecretForCluster(ctx context.Context, config *rest.Conf
 	}
 
 	var kubeconfigContent []byte
-	kubeconfigContent, err = getSecretData(ctx, c, clusterNamespace, clusterName, clusterType, logger)
+	kubeconfigContent, err = clusterproxy.GetSecretData(ctx, c, clusterNamespace, clusterName, "", "",
+		clusterType, logger)
 	if err != nil {
 		logger.V(logs.LogInfo).Info(fmt.Sprintf("failed to get kubeconfig for cluster. Err: %v", err))
 		return err

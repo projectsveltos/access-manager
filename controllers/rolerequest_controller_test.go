@@ -29,7 +29,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2/textlogger"
 
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -169,6 +169,7 @@ var _ = Describe("RoleRequets: Reconciler", func() {
 			},
 		}
 
+		initialized := true
 		matchingCluster := &clusterv1.Cluster{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      randomString(),
@@ -179,7 +180,9 @@ var _ = Describe("RoleRequets: Reconciler", func() {
 				},
 			},
 			Status: clusterv1.ClusterStatus{
-				ControlPlaneReady: true,
+				Initialization: clusterv1.ClusterInitializationStatus{
+					ControlPlaneInitialized: &initialized,
+				},
 			},
 		}
 
@@ -192,7 +195,9 @@ var _ = Describe("RoleRequets: Reconciler", func() {
 				},
 			},
 			Status: clusterv1.ClusterStatus{
-				ControlPlaneReady: true,
+				Initialization: clusterv1.ClusterInitializationStatus{
+					ControlPlaneInitialized: &initialized,
+				},
 			},
 		}
 

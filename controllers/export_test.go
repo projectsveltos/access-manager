@@ -44,10 +44,8 @@ const (
 )
 
 var (
-	IsClusterPaused         = isClusterPaused
 	GetHandlersForFeature   = getHandlersForFeature
 	CreatFeatureHandlerMaps = creatFeatureHandlerMaps
-	GetSecretData           = getSecretData
 )
 
 var (
