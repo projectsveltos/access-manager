@@ -27,7 +27,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2/textlogger"
-	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta1" //nolint:staticcheck // SA1019: We are unable to update the dependency at this time.
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
 	"github.com/projectsveltos/access-manager/controllers"
@@ -406,7 +406,7 @@ var _ = Describe("RoleRequest Predicates: ClusterPredicates", func() {
 	It("Create reprocesses when v1Cluster is unpaused", func() {
 		clusterPredicate := controllers.ClusterPredicate{Logger: logger}
 
-		cluster.Spec.Paused = &unpaused
+		cluster.Spec.Paused = unpaused
 
 		result := clusterPredicate.Create(event.TypedCreateEvent[*clusterv1.Cluster]{Object: cluster})
 		Expect(result).To(BeTrue())
@@ -414,7 +414,7 @@ var _ = Describe("RoleRequest Predicates: ClusterPredicates", func() {
 	It("Create does not reprocess when v1Cluster is paused", func() {
 		clusterPredicate := controllers.ClusterPredicate{Logger: logger}
 
-		cluster.Spec.Paused = &paused
+		cluster.Spec.Paused = paused
 		cluster.Annotations = map[string]string{clusterv1.PausedAnnotation: "true"}
 
 		result := clusterPredicate.Create(event.TypedCreateEvent[*clusterv1.Cluster]{Object: cluster})
@@ -429,7 +429,7 @@ var _ = Describe("RoleRequest Predicates: ClusterPredicates", func() {
 	It("Update reprocesses when v1Cluster paused changes from true to false", func() {
 		clusterPredicate := controllers.ClusterPredicate{Logger: logger}
 
-		cluster.Spec.Paused = &unpaused
+		cluster.Spec.Paused = unpaused
 
 		oldCluster := &clusterv1.Cluster{
 			ObjectMeta: metav1.ObjectMeta{
@@ -437,7 +437,7 @@ var _ = Describe("RoleRequest Predicates: ClusterPredicates", func() {
 				Namespace: cluster.Namespace,
 			},
 		}
-		oldCluster.Spec.Paused = &paused
+		oldCluster.Spec.Paused = paused
 		oldCluster.Annotations = map[string]string{clusterv1.PausedAnnotation: "true"}
 
 		result := clusterPredicate.Update(event.TypedUpdateEvent[*clusterv1.Cluster]{
@@ -447,7 +447,7 @@ var _ = Describe("RoleRequest Predicates: ClusterPredicates", func() {
 	It("Update does not reprocess when v1Cluster paused changes from false to true", func() {
 		clusterPredicate := controllers.ClusterPredicate{Logger: logger}
 
-		cluster.Spec.Paused = &paused
+		cluster.Spec.Paused = paused
 		cluster.Annotations = map[string]string{clusterv1.PausedAnnotation: "true"}
 		oldCluster := &clusterv1.Cluster{
 			ObjectMeta: metav1.ObjectMeta{
@@ -455,7 +455,7 @@ var _ = Describe("RoleRequest Predicates: ClusterPredicates", func() {
 				Namespace: cluster.Namespace,
 			},
 		}
-		oldCluster.Spec.Paused = &unpaused
+		oldCluster.Spec.Paused = unpaused
 
 		result := clusterPredicate.Update(event.TypedUpdateEvent[*clusterv1.Cluster]{
 			ObjectNew: cluster, ObjectOld: oldCluster})
@@ -464,14 +464,14 @@ var _ = Describe("RoleRequest Predicates: ClusterPredicates", func() {
 	It("Update does not reprocess when v1Cluster paused has not changed", func() {
 		clusterPredicate := controllers.ClusterPredicate{Logger: logger}
 
-		cluster.Spec.Paused = &unpaused
+		cluster.Spec.Paused = unpaused
 		oldCluster := &clusterv1.Cluster{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      cluster.Name,
 				Namespace: cluster.Namespace,
 			},
 		}
-		oldCluster.Spec.Paused = &unpaused
+		oldCluster.Spec.Paused = unpaused
 
 		result := clusterPredicate.Update(event.TypedUpdateEvent[*clusterv1.Cluster]{
 			ObjectNew: cluster, ObjectOld: oldCluster})
