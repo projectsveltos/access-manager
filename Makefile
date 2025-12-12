@@ -25,7 +25,7 @@ ARCH ?= amd64
 OS ?= $(shell uname -s | tr A-Z a-z)
 K8S_LATEST_VER ?= $(shell curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)
 export CONTROLLER_IMG ?= $(REGISTRY)/$(IMAGE_NAME)
-TAG ?= main
+TAG ?= v1.3.0
 
 .PHONY: all
 all: build
@@ -68,7 +68,7 @@ KUBECTL := $(TOOLS_BIN_DIR)/kubectl
 CLUSTERCTL := $(TOOLS_BIN_DIR)/clusterctl
 
 GOLANGCI_LINT_VERSION := "v2.5.0"
-CLUSTERCTL_VERSION := "v1.11.3"
+CLUSTERCTL_VERSION := v1.12.0
 
 KUSTOMIZE_VER := v5.7.0
 KUSTOMIZE_BIN := kustomize
@@ -391,3 +391,18 @@ deploy: manifests $(KUSTOMIZE) $(KUBECTL) $(ENVSUBST) ## Deploy controller to th
 .PHONY: undeploy
 undeploy: s $(KUSTOMIZE) ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUSTOMIZE) build config/default | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
+
+define get-digest-sveltos-applier
+$(shell skopeo inspect --format '{{.Digest}}' "docker://projectsveltos/sveltos-applier:main" --override-os="linux" --override-arch="amd64" --override-variant="v8" 2>/dev/null)
+endef
+
+sveltos-applier:
+	@echo "Downloading sveltos applier yaml"
+	$(eval digest :=$(call get-digest-sveltos-applier))
+	@echo "image digest is $(get-digest-sveltos-applier)"
+	curl -L -H "Authorization: token $$GITHUB_PAT" https://raw.githubusercontent.com/projectsveltos/sveltos-applier/main/manifest/manifest.yaml -o ./test/pullmode-sveltosapplier.yaml
+	sed -i '' -e "s#image: docker.io/projectsveltos/sveltos-applier:main#image: docker.io/projectsveltos/sveltos-applier@${digest}#g" ./test/pullmode-sveltosapplier.yaml
+	sed -i '' -e "s#cluster-namespace=#cluster-namespace=default#g" ./test/pullmode-sveltosapplier.yaml
+	sed -i '' -e "s#cluster-name=#cluster-name=clusterapi-workload#g" ./test/pullmode-sveltosapplier.yaml
+	sed -i '' -e "s#cluster-type=#cluster-type=sveltos#g" ./test/pullmode-sveltosapplier.yaml
+	sed -i '' -e "s#secret-with-kubeconfig=#secret-with-kubeconfig=clusterapi-workload-sveltos-kubeconfig#g" ./test/pullmode-sveltosapplier.yaml
