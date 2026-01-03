@@ -473,9 +473,9 @@ func deployRole(ctx context.Context, remoteConfig *rest.Config, remoteClient cli
 	// Following labels are added to indentify ConfigMap/Secret causing this resource to be deployed.
 	// Those are used to identify conflicts (different ConfigMaps/Secrets) updating same resource.
 	// Note, it is possible and OK for different RoleRequest to reference same ConfigMap/Secret.
-	addLabel(policy, deployer.ReferenceKindLabel, referencedObject.GetObjectKind().GroupVersionKind().Kind)
-	addLabel(policy, deployer.ReferenceNameLabel, referencedObject.GetName())
-	addLabel(policy, deployer.ReferenceNamespaceLabel, referencedObject.GetNamespace())
+	addAnnotation(policy, deployer.ReferenceKindAnnotation, referencedObject.GetObjectKind().GroupVersionKind().Kind)
+	addAnnotation(policy, deployer.ReferenceNameAnnotation, referencedObject.GetName())
+	addAnnotation(policy, deployer.ReferenceNamespaceAnnotation, referencedObject.GetNamespace())
 
 	addLabel(policy, libsveltosv1beta1.RoleRequestLabel, "ok")
 
@@ -666,6 +666,16 @@ func collectContent(data map[string]string, logger logr.Logger) ([]*unstructured
 	}
 
 	return policies, nil
+}
+
+// addAnnotation adds annotation to an object
+func addAnnotation(obj metav1.Object, annotationKey, annotationValue string) {
+	annotations := obj.GetAnnotations()
+	if annotations == nil {
+		annotations = make(map[string]string)
+	}
+	annotations[annotationKey] = annotationValue
+	obj.SetAnnotations(annotations)
 }
 
 // addLabel adds label to an object

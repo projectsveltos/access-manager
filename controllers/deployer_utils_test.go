@@ -325,7 +325,7 @@ var _ = Describe("Deployer utils", func() {
 			if err != nil {
 				return false
 			}
-			return validateLabels(currentClusterRole, configMap)
+			return validateAnnotations(currentClusterRole, configMap)
 		}, timeout, pollingInterval).Should(BeTrue())
 
 		// Corresponding ClusterRoleBinding must be present
@@ -354,7 +354,7 @@ var _ = Describe("Deployer utils", func() {
 			if err != nil {
 				return false
 			}
-			return validateLabels(currentClusterRole, secret)
+			return validateAnnotations(currentClusterRole, secret)
 		}, timeout, pollingInterval).Should(BeTrue())
 
 		// Corresponding ClusterRoleBinding must be present
@@ -482,29 +482,29 @@ var _ = Describe("Deployer utils", func() {
 	})
 })
 
-func validateLabels(deployedResource, ownerResource client.Object) bool {
-	labels := deployedResource.GetLabels()
-	if labels == nil {
+func validateAnnotations(deployedResource, ownerResource client.Object) bool {
+	annts := deployedResource.GetAnnotations()
+	if annts == nil {
 		return false
 	}
 
-	if !validateLabel(labels, deployer.ReferenceKindLabel, ownerResource.GetObjectKind().GroupVersionKind().Kind) {
+	if !validateAnnotation(annts, deployer.ReferenceKindAnnotation, ownerResource.GetObjectKind().GroupVersionKind().Kind) {
 		return false
 	}
 
-	if !validateLabel(labels, deployer.ReferenceNameLabel, ownerResource.GetName()) {
+	if !validateAnnotation(annts, deployer.ReferenceNameAnnotation, ownerResource.GetName()) {
 		return false
 	}
 
-	if !validateLabel(labels, deployer.ReferenceNamespaceLabel, ownerResource.GetNamespace()) {
+	if !validateAnnotation(annts, deployer.ReferenceNamespaceAnnotation, ownerResource.GetNamespace()) {
 		return false
 	}
 
 	return true
 }
 
-func validateLabel(labels map[string]string, key, value string) bool {
-	v, ok := labels[key]
+func validateAnnotation(annotations map[string]string, key, value string) bool {
+	v, ok := annotations[key]
 	if !ok {
 		return false
 	}

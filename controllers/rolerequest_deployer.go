@@ -862,7 +862,7 @@ func cleanStaleClusterRoleResources(ctx context.Context, remoteClient client.Cli
 		logger.V(logs.LogVerbose).Info("considering clusterRole %s", cr.GetName())
 		// Verify if this policy was deployed because of a clustersummary (ReferenceLabelName
 		// is present as label in such a case).
-		if !hasLabel(cr, deployer.ReferenceNameLabel, "") {
+		if !hasAnnotation(cr, deployer.ReferenceNameAnnotation, "") {
 			continue
 		}
 
@@ -915,7 +915,7 @@ func cleanStaleRoleResources(ctx context.Context, remoteClient client.Client, ro
 		logger.V(logs.LogVerbose).Info("considering role %s:%s", r.GetNamespace(), r.GetName())
 		// Verify if this policy was deployed because of a clustersummary (ReferenceLabelName
 		// is present as label in such a case).
-		if !hasLabel(r, deployer.ReferenceNameLabel, "") {
+		if !hasAnnotation(r, deployer.ReferenceNameAnnotation, "") {
 			continue
 		}
 
@@ -1094,16 +1094,16 @@ func getPolicyInfo(policy *corev1.ObjectReference) string {
 		policy.Name)
 }
 
-// hasLabel search if key is one of the label.
+// hasAnnotation search if key is one of the annotations.
 // If value is empty, returns true if key is present.
 // If value is not empty, returns true if key is present and value is a match.
-func hasLabel(u client.Object, key, value string) bool {
-	lbls := u.GetLabels()
-	if lbls == nil {
+func hasAnnotation(u client.Object, key, value string) bool {
+	annts := u.GetAnnotations()
+	if annts == nil {
 		return false
 	}
 
-	v, ok := lbls[key]
+	v, ok := annts[key]
 
 	if value == "" {
 		return ok
