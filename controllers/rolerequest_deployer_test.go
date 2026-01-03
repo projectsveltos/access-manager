@@ -168,7 +168,7 @@ var _ = Describe("Deployer", func() {
 			if err != nil {
 				return false
 			}
-			return validateLabels(currentClusterRole, configMap)
+			return validateAnnotations(currentClusterRole, configMap)
 		}, timeout, pollingInterval).Should(BeTrue())
 
 		Eventually(func() bool {
@@ -179,7 +179,7 @@ var _ = Describe("Deployer", func() {
 			if err != nil {
 				return false
 			}
-			return validateLabels(currentClusterRole, secret)
+			return validateAnnotations(currentClusterRole, secret)
 		}, timeout, pollingInterval).Should(BeTrue())
 
 		// Name of the ServiceAccount created by Sveltos in the managed cluster
@@ -266,7 +266,7 @@ var _ = Describe("Deployer", func() {
 			if err != nil {
 				return false
 			}
-			return validateLabels(currentClusterRole, configMap1)
+			return validateAnnotations(currentClusterRole, configMap1)
 		}, timeout, pollingInterval).Should(BeTrue())
 
 		// Name of the ServiceAccount created by Sveltos in the managed cluster
@@ -292,7 +292,7 @@ var _ = Describe("Deployer", func() {
 			if err != nil {
 				return false
 			}
-			return validateLabels(currentRole, configMap2)
+			return validateAnnotations(currentRole, configMap2)
 		}, timeout, pollingInterval).Should(BeTrue())
 
 		// Verify RoleBinding is present
@@ -377,12 +377,12 @@ var _ = Describe("Deployer", func() {
 
 		// Add labels as objects deployed by sveltos must have those labels.
 		// Sveltos wont clean up otherwise
-		labels := map[string]string{
-			deployer.ReferenceNameLabel:      randomString(),
-			deployer.ReferenceNamespaceLabel: randomString(),
-			deployer.ReferenceKindLabel:      "ConfigMap",
+		annotations := map[string]string{
+			deployer.ReferenceNameAnnotation:      randomString(),
+			deployer.ReferenceNamespaceAnnotation: randomString(),
+			deployer.ReferenceKindAnnotation:      "ConfigMap",
 		}
-		clusterRole.SetLabels(labels)
+		clusterRole.SetAnnotations(annotations)
 
 		apiVersion, kind := roleRequest.GetObjectKind().GroupVersionKind().ToAPIVersionAndKind()
 		clusterRole.SetOwnerReferences([]metav1.OwnerReference{
