@@ -65,7 +65,7 @@ const (
 	timeout                  = 40 * time.Second
 	pollingInterval          = 2 * time.Second
 	clusterAPIGroup          = "cluster.x-k8s.io"
-	clusterAPITestVersion    = "v1beta1"
+	clusterAPITestVersion    = "v1beta2"
 	sveltosKubeconfigPostfix = "-sveltos-kubeconfig"
 )
 

@@ -25,7 +25,7 @@ ARCH ?= amd64
 OS ?= $(shell uname -s | tr A-Z a-z)
 K8S_LATEST_VER ?= $(shell curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)
 export CONTROLLER_IMG ?= $(REGISTRY)/$(IMAGE_NAME)
-TAG ?= v1.8.0
+TAG ?= v1.9.0
 
 .PHONY: all
 all: build
@@ -68,7 +68,7 @@ KUBECTL := $(TOOLS_BIN_DIR)/kubectl
 CLUSTERCTL := $(TOOLS_BIN_DIR)/clusterctl
 
 GOLANGCI_LINT_VERSION := "v2.11.4"
-CLUSTERCTL_VERSION := v1.12.5
+CLUSTERCTL_VERSION := v1.13.1
 
 KUSTOMIZE_VER := v5.8.0
 KUSTOMIZE_BIN := kustomize
@@ -194,6 +194,14 @@ fv: $(GINKGO) ## Run Sveltos Controller tests using existing cluster
 .PHONY: fv-pullmode
 fv-pullmode: $(GINKGO) ## Run Sveltos Controller tests using existing cluster
 	cd test/fv; $(GINKGO) -nodes $(NUM_NODES) --label-filter='PULLMODE' --v --trace --randomize-all
+
+.PHONY: fv-sharding
+fv-sharding: $(KUBECTL) $(GINKGO) ## Run Sveltos Controller tests using existing cluster
+	$(KUBECTL) patch cluster clusterapi-workload  -n default --type json -p '[{ "op": "add", "path": "/metadata/annotations/sharding.projectsveltos.io~1key", "value": "shard1" }]'
+	sed -e "s/{{.SHARD}}/shard1/g"  manifest/deployment-shard.yaml > test/access-manager-deployment-shard.yaml
+	$(KUBECTL) apply -f test/access-manager-deployment-shard.yaml
+	rm -f test/access-manager-deployment-shard.yaml
+	cd test/fv; $(GINKGO) -nodes $(NUM_NODES) --label-filter='FV' --v --trace --randomize-all
 
 .PHONY: create-cluster
 create-cluster: $(KIND) $(CLUSTERCTL) $(KUBECTL) $(ENVSUBST) ## Create a new kind cluster designed for development
