@@ -127,7 +127,7 @@ type RoleRequestReconciler struct {
 
 func (r *RoleRequestReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ ctrl.Result, reterr error) {
 	logger := ctrl.LoggerFrom(ctx)
-	logger.V(logs.LogInfo).Info("Reconciling")
+	logger.V(logs.LogDebug).Info("Reconciling")
 
 	// Fecth the roleRequest instance
 	roleRequest := &libsveltosv1beta1.RoleRequest{}
@@ -181,7 +181,7 @@ func (r *RoleRequestReconciler) reconcileDelete(
 	logger logr.Logger,
 ) (reconcile.Result, error) {
 
-	logger.V(logs.LogInfo).Info("Reconciling RoleRequest delete")
+	logger.V(logs.LogDebug).Info("Reconciling RoleRequest delete")
 
 	// Undeploy roleRequest from all clusters where it was deployed
 	f := getHandlersForFeature(libsveltosv1beta1.FeatureRoleRequest)
@@ -216,7 +216,7 @@ func (r *RoleRequestReconciler) reconcileDelete(
 
 	delete(r.RoleRequests, *roleRequestInfo)
 
-	logger.V(logs.LogInfo).Info("Removing finalizer")
+	logger.V(logs.LogDebug).Info("Removing finalizer")
 	if controllerutil.ContainsFinalizer(roleRequestScope.RoleRequest, libsveltosv1beta1.RoleRequestFinalizer) {
 		if finalizersUpdated := controllerutil.RemoveFinalizer(roleRequestScope.RoleRequest,
 			libsveltosv1beta1.RoleRequestFinalizer); !finalizersUpdated {
@@ -224,7 +224,7 @@ func (r *RoleRequestReconciler) reconcileDelete(
 		}
 	}
 
-	logger.V(logs.LogInfo).Info("Reconcile delete success")
+	logger.V(logs.LogDebug).Info("Reconcile delete success")
 	return reconcile.Result{}, nil
 }
 
@@ -234,7 +234,7 @@ func (r *RoleRequestReconciler) reconcileNormal(
 	logger logr.Logger,
 ) (reconcile.Result, error) {
 
-	logger.V(logs.LogInfo).Info("Reconciling RoleRequest")
+	logger.V(logs.LogDebug).Info("Reconciling RoleRequest")
 
 	if !controllerutil.ContainsFinalizer(roleRequestScope.RoleRequest, libsveltosv1beta1.RoleRequestFinalizer) {
 		if err := r.addFinalizer(ctx, roleRequestScope); err != nil {
@@ -271,13 +271,13 @@ func (r *RoleRequestReconciler) reconcileNormal(
 		return reconcile.Result{Requeue: true, RequeueAfter: normalRequeueAfter}, nil
 	}
 	if nextExpirationTime != nil {
-		logger.V(logs.LogInfo).Info(fmt.Sprintf(
+		logger.V(logs.LogDebug).Info(fmt.Sprintf(
 			"Reconciling RoleRequest success (requing in %f seconds before token expires)",
 			nextExpirationTime.Seconds()))
 		return reconcile.Result{Requeue: true, RequeueAfter: *nextExpirationTime}, nil
 	}
 
-	logger.V(logs.LogInfo).Info("Reconciling RoleRequest success (no token expiring)")
+	logger.V(logs.LogDebug).Info("Reconciling RoleRequest success (no token expiring)")
 	return reconcile.Result{}, nil
 }
 

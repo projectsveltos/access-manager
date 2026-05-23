@@ -84,7 +84,7 @@ type AccessRequestReconciler struct {
 
 func (r *AccessRequestReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ ctrl.Result, reterr error) {
 	logger := ctrl.LoggerFrom(ctx)
-	logger.V(logs.LogInfo).Info("Reconciling")
+	logger.V(logs.LogDebug).Info("Reconciling")
 
 	// Fecth the AccessRequest instance
 	accessRequest := &libsveltosv1beta1.AccessRequest{}
@@ -141,7 +141,7 @@ func (r *AccessRequestReconciler) reconcileDelete(
 ) error {
 
 	logger := accessRequestScope.Logger
-	logger.V(logs.LogInfo).Info("Reconciling AccessRequest delete")
+	logger.V(logs.LogDebug).Info("Reconciling AccessRequest delete")
 
 	err := r.cleanup(ctx, accessRequestScope, logger)
 	if err != nil {
@@ -154,7 +154,7 @@ func (r *AccessRequestReconciler) reconcileDelete(
 	logger.Info("Removing finalizer")
 	controllerutil.RemoveFinalizer(accessRequestScope.AccessRequest, libsveltosv1beta1.AccessRequestFinalizer)
 
-	logger.V(logs.LogInfo).Info("Reconcile delete success")
+	logger.V(logs.LogDebug).Info("Reconcile delete success")
 	return nil
 }
 
@@ -164,7 +164,7 @@ func (r *AccessRequestReconciler) reconcileNormal(
 ) (reconcile.Result, error) {
 
 	logger := accessRequestScope.Logger
-	logger.V(logs.LogInfo).Info("Reconciling AccessRequest")
+	logger.V(logs.LogDebug).Info("Reconciling AccessRequest")
 
 	if !controllerutil.ContainsFinalizer(accessRequestScope.AccessRequest, libsveltosv1beta1.AccessRequestFinalizer) {
 		if err := r.addFinalizer(ctx, accessRequestScope); err != nil {
@@ -180,7 +180,7 @@ func (r *AccessRequestReconciler) reconcileNormal(
 		return reconcile.Result{}, err
 	}
 
-	logger.V(logs.LogInfo).Info("Reconcile success")
+	logger.V(logs.LogDebug).Info("Reconcile success")
 	// Requeue in expirationInSecond in order to renew token
 	return reconcile.Result{Requeue: true, RequeueAfter: expirationInSecond}, nil
 }
@@ -242,7 +242,7 @@ func (r *AccessRequestReconciler) handleAccessRequest(ctx context.Context, acces
 		return err
 	}
 
-	accessRequestScope.Logger.V(logs.LogInfo).Info("set status secretref")
+	accessRequestScope.Logger.V(logs.LogDebug).Info("set status secretref")
 	accessRequestScope.SetSecretRef(&corev1.ObjectReference{
 		Namespace:  accessRequestScope.AccessRequest.Spec.Namespace,
 		Name:       accessRequestScope.AccessRequest.Spec.Name,

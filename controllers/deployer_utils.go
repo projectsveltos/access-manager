@@ -47,10 +47,9 @@ import (
 )
 
 const (
-	separator               = "---\n"
-	serviceAccountNamespace = "projectsveltos"
-	roleKind                = "Role"
-	clusterRoleKind         = "ClusterRole"
+	separator       = "---\n"
+	roleKind        = "Role"
+	clusterRoleKind = "ClusterRole"
 	// expirationInSecond is the token expiration time.
 	saExpirationInSecond = 365 * 24 * 60 * time.Minute
 	expirationKey        = "expirationTime"
@@ -64,7 +63,7 @@ func getServiceAccountToDeploy(roleRequest *libsveltosv1beta1.RoleRequest) *core
 	toDeploy := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      saName,
-			Namespace: serviceAccountNamespace,
+			Namespace: getSveltosNamespace(),
 			Labels: map[string]string{
 				libsveltosv1beta1.RoleRequestLabel: roleRequestOKLabel,
 			},
@@ -81,7 +80,7 @@ func getServiceAccountToDeploy(roleRequest *libsveltosv1beta1.RoleRequest) *core
 func createServiceAccountInManagedCluster(ctx context.Context, remoteClient client.Client,
 	roleRequest *libsveltosv1beta1.RoleRequest) error {
 
-	err := createNamespaceInManagedCluster(ctx, remoteClient, serviceAccountNamespace)
+	err := createNamespaceInManagedCluster(ctx, remoteClient, getSveltosNamespace())
 	if err != nil {
 		return err
 	}
@@ -90,11 +89,11 @@ func createServiceAccountInManagedCluster(ctx context.Context, remoteClient clie
 	saName := libsveltosroles.GetServiceAccountNameInManagedCluster(
 		roleRequest.Spec.ServiceAccountNamespace, roleRequest.Spec.ServiceAccountName)
 	serviceAccount := &corev1.ServiceAccount{}
-	err = remoteClient.Get(ctx, client.ObjectKey{Namespace: serviceAccountNamespace, Name: saName},
+	err = remoteClient.Get(ctx, client.ObjectKey{Namespace: getSveltosNamespace(), Name: saName},
 		serviceAccount)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			serviceAccount.Namespace = serviceAccountNamespace
+			serviceAccount.Namespace = getSveltosNamespace()
 			serviceAccount.Name = saName
 			serviceAccount.Labels = map[string]string{libsveltosv1beta1.RoleRequestLabel: roleRequestOKLabel}
 			k8s_utils.AddOwnerReference(serviceAccount, roleRequest)
@@ -122,7 +121,8 @@ func getServiceAccountToken(ctx context.Context, config *rest.Config, saName str
 	}
 
 	var tokenRequest *authenticationv1.TokenRequest
-	tokenRequest, err = clientset.CoreV1().ServiceAccounts(serviceAccountNamespace).CreateToken(ctx, saName, treq, metav1.CreateOptions{})
+	tokenRequest, err = clientset.CoreV1().ServiceAccounts(getSveltosNamespace()).
+		CreateToken(ctx, saName, treq, metav1.CreateOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -546,7 +546,7 @@ func getRoleBinding(role *unstructured.Unstructured, roleRequest *libsveltosv1be
 			{
 				Kind:      serviceAccountKind,
 				Name:      saName,
-				Namespace: serviceAccountNamespace,
+				Namespace: getSveltosNamespace(),
 			},
 		},
 	}
@@ -570,7 +570,7 @@ func getClusterRoleBinding(clusterRole *unstructured.Unstructured, roleRequest *
 			{
 				Kind:      serviceAccountKind,
 				Name:      saName,
-				Namespace: serviceAccountNamespace,
+				Namespace: getSveltosNamespace(),
 			},
 		},
 	}

@@ -35,7 +35,7 @@ const (
 var (
 	programRoleRequestDurationHistogram = prometheus.NewHistogram(
 		prometheus.HistogramOpts{
-			Namespace: "projectsveltos",
+			Namespace: getSveltosNamespace(),
 			Name:      programRoleRequestHistogramName,
 			Help:      programRoleRequestHistogramHelp,
 			Buckets:   []float64{0.1, 0.5, 1, 5, 10, 20, 30},

@@ -250,7 +250,7 @@ func (r *RoleRequestReconciler) proceedProcessingRoleRequest(ctx context.Context
 	needToRedeploy := !isConfigSame || timeExpired
 
 	if !needToRedeploy {
-		logger.V(logs.LogInfo).Info("roleRequest has not changed and timer has not expired ")
+		logger.V(logs.LogDebug).Info("roleRequest has not changed and timer has not expired ")
 		result = r.Deployer.GetResult(ctx, cluster.Namespace, cluster.Name, roleRequest.Name, f.id,
 			clusterproxy.GetClusterType(cluster), false)
 		deployerStatus = r.convertResultStatus(result)
@@ -282,11 +282,11 @@ func (r *RoleRequestReconciler) proceedProcessingRoleRequest(ctx context.Context
 			return clusterInfo, fmt.Errorf("roleRequest is still being provisioned")
 		}
 	} else if !needToRedeploy && currentStatus != nil && *currentStatus == libsveltosv1beta1.SveltosStatusProvisioned {
-		logger.V(logs.LogInfo).Info("already deployed")
+		logger.V(logs.LogDebug).Info("already deployed")
 		s := libsveltosv1beta1.SveltosStatusProvisioned
 		deployerStatus = &s
 	} else {
-		logger.V(logs.LogInfo).Info("no result is available/redeploy is needed. queue job and mark status as provisioning")
+		logger.V(logs.LogDebug).Info("no result is available/redeploy is needed. queue job and mark status as provisioning")
 		s := libsveltosv1beta1.SveltosStatusProvisioning
 		deployerStatus = &s
 
@@ -795,7 +795,7 @@ func removeServiceAccount(ctx context.Context, remoteClient client.Client, roleR
 	// Generate the name of the corresponding ServiceAccount in the managed cluster
 	saName := roles.GetServiceAccountNameInManagedCluster(roleRequest.Spec.ServiceAccountNamespace, roleRequest.Spec.ServiceAccountName)
 	serviceAccount := &corev1.ServiceAccount{}
-	err := remoteClient.Get(ctx, client.ObjectKey{Namespace: serviceAccountNamespace, Name: saName},
+	err := remoteClient.Get(ctx, client.ObjectKey{Namespace: getSveltosNamespace(), Name: saName},
 		serviceAccount)
 	if err != nil {
 		if apierrors.IsNotFound(err) {

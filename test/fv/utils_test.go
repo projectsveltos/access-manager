@@ -243,7 +243,7 @@ func getServiceAccountNameInManagedCluster(namespace, name string) string {
 	// A RoleRequest contains the Namespace/Name of the ServiceAccount in the management
 	// cluster for which a RoleRequest was issued (request to grant permission in managed clusters).
 	// When processing a RoleRequest, Sveltos creates a ServiceAccount in the managed cluster.
-	// Such ServiceAccount is created in the "projectsveltos" namespace.
+	// Such ServiceAccount is created in the namespace where Sveltos is running.
 	// This method returns the name of the ServiceAccount in the managed cluster (name cannot
 	// match the one in the management cluster to avoid clashes)
 	return fmt.Sprintf("%s--%s", namespace, name)

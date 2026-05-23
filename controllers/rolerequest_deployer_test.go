@@ -194,7 +194,7 @@ var _ = Describe("Deployer", func() {
 		Expect(currentClusterRoleBinding.Subjects).ToNot(BeNil())
 		Expect(len(currentClusterRoleBinding.Subjects)).To(Equal(1))
 		Expect(currentClusterRoleBinding.Subjects[0].Name).To(Equal(saName))
-		Expect(currentClusterRoleBinding.Subjects[0].Namespace).To(Equal(controllers.ServiceAccountNamespace))
+		Expect(currentClusterRoleBinding.Subjects[0].Namespace).To(Equal(controllers.GetSveltosNamespace()))
 
 		Expect(testEnv.Get(context.TODO(),
 			types.NamespacedName{Name: modifyClusterRoleName},
@@ -202,12 +202,12 @@ var _ = Describe("Deployer", func() {
 		Expect(currentClusterRoleBinding.Subjects).ToNot(BeNil())
 		Expect(len(currentClusterRoleBinding.Subjects)).To(Equal(1))
 		Expect(currentClusterRoleBinding.Subjects[0].Name).To(Equal(saName))
-		Expect(currentClusterRoleBinding.Subjects[0].Namespace).To(Equal(controllers.ServiceAccountNamespace))
+		Expect(currentClusterRoleBinding.Subjects[0].Namespace).To(Equal(controllers.GetSveltosNamespace()))
 
 		// Verify ServiceAccount is present
 		currentServiceAccount := &corev1.ServiceAccount{}
 		Expect(testEnv.Get(context.TODO(),
-			types.NamespacedName{Namespace: controllers.ServiceAccountNamespace, Name: saName},
+			types.NamespacedName{Namespace: controllers.GetSveltosNamespace(), Name: saName},
 			currentServiceAccount)).To(Succeed())
 	})
 
@@ -281,7 +281,7 @@ var _ = Describe("Deployer", func() {
 		Expect(currentClusterRoleBinding.Subjects).ToNot(BeNil())
 		Expect(len(currentClusterRoleBinding.Subjects)).To(Equal(1))
 		Expect(currentClusterRoleBinding.Subjects[0].Name).To(Equal(saName))
-		Expect(currentClusterRoleBinding.Subjects[0].Namespace).To(Equal(controllers.ServiceAccountNamespace))
+		Expect(currentClusterRoleBinding.Subjects[0].Namespace).To(Equal(controllers.GetSveltosNamespace()))
 
 		// Verify Role is present
 		Eventually(func() bool {
@@ -303,12 +303,12 @@ var _ = Describe("Deployer", func() {
 		Expect(roleBinding.Subjects).ToNot(BeNil())
 		Expect(len(roleBinding.Subjects)).To(Equal(1))
 		Expect(roleBinding.Subjects[0].Name).To(Equal(saName))
-		Expect(roleBinding.Subjects[0].Namespace).To(Equal(controllers.ServiceAccountNamespace))
+		Expect(roleBinding.Subjects[0].Namespace).To(Equal(controllers.GetSveltosNamespace()))
 
 		// Verify ServiceAccount is present
 		currentServiceAccount := &corev1.ServiceAccount{}
 		Expect(testEnv.Get(context.TODO(),
-			types.NamespacedName{Namespace: controllers.ServiceAccountNamespace, Name: saName},
+			types.NamespacedName{Namespace: controllers.GetSveltosNamespace(), Name: saName},
 			currentServiceAccount)).To(Succeed())
 
 		// Update RoleRequest to not reference ConfigMap anymore
