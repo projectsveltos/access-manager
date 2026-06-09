@@ -47,6 +47,12 @@ import (
 const (
 	// expirationInSecond is the token expiration time.
 	expirationInSecond = 10 * time.Minute // minimum duration is 10 minutes
+	sveltosAPIGroup    = "lib.projectsveltos.io"
+	verbCreate         = "create"
+	verbGet            = "get"
+	verbList           = "list"
+	verbUpdate         = "update"
+	secretDataKey      = "data"
 )
 
 // AccessRequestReconciler reconciles a AccessRequest obje©∫ct
@@ -391,13 +397,13 @@ func (r *AccessRequestReconciler) createRoleBinding(ctx context.Context,
 			roleBinding.Name = ar.Spec.Name
 			roleBinding.Labels = map[string]string{libsveltosv1beta1.AccessRequestNameLabel: ar.Name}
 			roleBinding.RoleRef = rbacv1.RoleRef{
-				APIGroup: "rbac.authorization.k8s.io",
+				APIGroup: rbacAPIGroup,
 				Kind:     "Role",
 				Name:     ar.Spec.Name,
 			}
 			roleBinding.Subjects = []rbacv1.Subject{
 				{
-					Kind:      "ServiceAccount",
+					Kind:      serviceAccountKind,
 					Name:      ar.Spec.Name,
 					Namespace: ar.Spec.Namespace,
 				},
@@ -413,19 +419,19 @@ func (r *AccessRequestReconciler) createRoleBinding(ctx context.Context,
 func (r *AccessRequestReconciler) getClassifierPolicyRules() []rbacv1.PolicyRule {
 	return []rbacv1.PolicyRule{
 		{
-			APIGroups: []string{"lib.projectsveltos.io"},
+			APIGroups: []string{sveltosAPIGroup},
 			Resources: []string{"classifierreports"},
-			Verbs:     []string{"create", "get", "list", "update"},
+			Verbs:     []string{verbCreate, verbGet, verbList, verbUpdate},
 		},
 		{
-			APIGroups: []string{"lib.projectsveltos.io"},
+			APIGroups: []string{sveltosAPIGroup},
 			Resources: []string{"healthcheckreports"},
-			Verbs:     []string{"create", "get", "list", "update"},
+			Verbs:     []string{verbCreate, verbGet, verbList, verbUpdate},
 		},
 		{
-			APIGroups: []string{"lib.projectsveltos.io"},
+			APIGroups: []string{sveltosAPIGroup},
 			Resources: []string{"eventreports"},
-			Verbs:     []string{"create", "get", "list", "update"},
+			Verbs:     []string{verbCreate, verbGet, verbList, verbUpdate},
 		},
 	}
 }
@@ -442,13 +448,13 @@ func (r *AccessRequestReconciler) updateSecret(ctx context.Context,
 			secret.Namespace = ar.Spec.Namespace
 			secret.Name = ar.Spec.Name
 			secret.Labels = map[string]string{libsveltosv1beta1.AccessRequestNameLabel: ar.Name}
-			secret.Data = map[string][]byte{"data": kubeconfig}
+			secret.Data = map[string][]byte{secretDataKey: kubeconfig}
 			return r.Create(ctx, secret)
 		}
 		return err
 	}
 
-	secret.Data = map[string][]byte{"data": kubeconfig}
+	secret.Data = map[string][]byte{secretDataKey: kubeconfig}
 	return r.Update(ctx, secret)
 }
 

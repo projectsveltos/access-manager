@@ -86,7 +86,7 @@ var _ = Describe("Deployer", func() {
 
 		cluster := &libsveltosv1beta1.SveltosCluster{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "default",
+				Namespace: defaultNamespace,
 				Name:      randomString(),
 			},
 		}
@@ -287,7 +287,7 @@ var _ = Describe("Deployer", func() {
 		Eventually(func() bool {
 			currentRole := &rbacv1.Role{}
 			err := testEnv.Get(context.TODO(),
-				types.NamespacedName{Namespace: "default", Name: viewRoleName},
+				types.NamespacedName{Namespace: defaultNamespace, Name: viewRoleName},
 				currentRole)
 			if err != nil {
 				return false
@@ -298,7 +298,7 @@ var _ = Describe("Deployer", func() {
 		// Verify RoleBinding is present
 		roleBinding := &rbacv1.RoleBinding{}
 		Expect(testEnv.Get(context.TODO(),
-			types.NamespacedName{Namespace: "default", Name: viewRoleName},
+			types.NamespacedName{Namespace: defaultNamespace, Name: viewRoleName},
 			roleBinding)).To(Succeed())
 		Expect(roleBinding.Subjects).ToNot(BeNil())
 		Expect(len(roleBinding.Subjects)).To(Equal(1))
@@ -400,7 +400,7 @@ var _ = Describe("Deployer", func() {
 			RoleRef: rbacv1.RoleRef{
 				Kind:     clusterRole.GetKind(),
 				Name:     viewClusterRoleName,
-				APIGroup: "rbac.authorization.k8s.io",
+				APIGroup: rbacAPIGroup,
 			},
 		}
 		Expect(testEnv.Create(context.TODO(), clusterRoleBinding)).To(Succeed())

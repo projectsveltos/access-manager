@@ -427,7 +427,7 @@ var _ = Describe("Deployer utils", func() {
 
 		serviceAccount := corev1.ServiceAccount{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "default",
+				Namespace: defaultNamespace,
 				Name:      randomString(),
 			},
 		}

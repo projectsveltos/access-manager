@@ -125,7 +125,7 @@ var _ = Describe("ClustersummaryTransformations map functions", func() {
 				Name:      randomString(),
 				Namespace: namespace,
 				Labels: map[string]string{
-					"env": "production",
+					envKey: productionValue,
 				},
 			},
 		}
@@ -137,7 +137,7 @@ var _ = Describe("ClustersummaryTransformations map functions", func() {
 			Spec: libsveltosv1beta1.RoleRequestSpec{
 				ClusterSelector: libsveltosv1beta1.Selector{
 					LabelSelector: metav1.LabelSelector{
-						MatchLabels: map[string]string{"env": "production"},
+						MatchLabels: map[string]string{envKey: productionValue},
 					},
 				},
 				ServiceAccountName:      randomString(),
@@ -152,7 +152,7 @@ var _ = Describe("ClustersummaryTransformations map functions", func() {
 			Spec: libsveltosv1beta1.RoleRequestSpec{
 				ClusterSelector: libsveltosv1beta1.Selector{
 					LabelSelector: metav1.LabelSelector{
-						MatchLabels: map[string]string{"env": "qa"},
+						MatchLabels: map[string]string{envKey: qaValue},
 					},
 				},
 				ServiceAccountName:      randomString(),
@@ -229,7 +229,7 @@ var _ = Describe("ClustersummaryTransformations map functions", func() {
 		matchingRoleRequest.Spec.ClusterSelector = libsveltosv1beta1.Selector{
 			LabelSelector: metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					"env": "qa",
+					envKey: qaValue,
 				},
 			},
 		}

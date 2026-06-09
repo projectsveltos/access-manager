@@ -27,12 +27,17 @@ import (
 	logs "github.com/projectsveltos/libsveltos/lib/logsettings"
 )
 
+const (
+	programRoleRequestHistogramName = "program_rolerequest_time_seconds"
+	programRoleRequestHistogramHelp = "Program RoleRequest on a workload cluster duration distribution"
+)
+
 var (
 	programRoleRequestDurationHistogram = prometheus.NewHistogram(
 		prometheus.HistogramOpts{
 			Namespace: "projectsveltos",
-			Name:      "program_rolerequest_time_seconds",
-			Help:      "Program RoleRequest on a workload cluster duration distribution",
+			Name:      programRoleRequestHistogramName,
+			Help:      programRoleRequestHistogramHelp,
 			Buckets:   []float64{0.1, 0.5, 1, 5, 10, 20, 30},
 		},
 	)
@@ -51,8 +56,8 @@ func newRoleRequestHistogram(clusterNamespace, clusterName string, clusterType l
 	histogram := prometheus.NewHistogram(
 		prometheus.HistogramOpts{
 			Namespace: clusterInfo,
-			Name:      "program_rolerequest_time_seconds",
-			Help:      "Program RoleRequest on a workload cluster duration distribution",
+			Name:      programRoleRequestHistogramName,
+			Help:      programRoleRequestHistogramHelp,
 			Buckets:   []float64{0.1, 0.5, 1, 5, 10, 20, 30},
 		},
 	)

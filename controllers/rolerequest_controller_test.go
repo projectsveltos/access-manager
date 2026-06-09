@@ -160,8 +160,8 @@ var _ = Describe("RoleRequets: Reconciler", func() {
 				Name:      randomString(),
 				Namespace: randomString(),
 				Labels: map[string]string{
-					"env":  "qa",
-					"zone": "west",
+					envKey:  qaValue,
+					zoneKey: westValue,
 				},
 			},
 			Status: libsveltosv1beta1.SveltosClusterStatus{
@@ -175,8 +175,8 @@ var _ = Describe("RoleRequets: Reconciler", func() {
 				Name:      randomString(),
 				Namespace: randomString(),
 				Labels: map[string]string{
-					"env":  "qa",
-					"zone": "west",
+					envKey:  qaValue,
+					zoneKey: westValue,
 				},
 			},
 			Status: clusterv1.ClusterStatus{
@@ -191,7 +191,7 @@ var _ = Describe("RoleRequets: Reconciler", func() {
 				Name:      randomString(),
 				Namespace: randomString(),
 				Labels: map[string]string{
-					"zone": "west",
+					zoneKey: westValue,
 				},
 			},
 			Status: clusterv1.ClusterStatus{
@@ -204,8 +204,8 @@ var _ = Describe("RoleRequets: Reconciler", func() {
 		roleRequest.Spec.ClusterSelector = libsveltosv1beta1.Selector{
 			LabelSelector: metav1.LabelSelector{
 				MatchLabels: map[string]string{
-					"env":  "qa",
-					"zone": "west",
+					envKey:  qaValue,
+					zoneKey: westValue,
 				},
 			},
 		}

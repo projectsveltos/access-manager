@@ -283,7 +283,7 @@ var _ = Describe("AccessRequestReconciler", func() {
 				Namespace: accessRequest.Spec.Namespace,
 			},
 			RoleRef: rbacv1.RoleRef{
-				APIGroup: "rbac.authorization.k8s.io",
+				APIGroup: rbacAPIGroup,
 				Kind:     "Role",
 				Name:     accessRequest.Spec.Name,
 			},
