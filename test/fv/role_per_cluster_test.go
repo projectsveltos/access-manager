@@ -100,7 +100,7 @@ var _ = Describe("RoleRequest", func() {
 		Byf("Verifying proper ServiceAccount is created in the workload cluster")
 		currentServiceAccount := &corev1.ServiceAccount{}
 		Expect(workloadClient.Get(context.TODO(),
-			types.NamespacedName{Namespace: "projectsveltos", Name: saNameInManagedCluster},
+			types.NamespacedName{Namespace: sveltosNamespace, Name: saNameInManagedCluster},
 			currentServiceAccount)).To(Succeed())
 
 		// In pull mode the Secret with ServiceAccount's Kubeconfig is never created
@@ -181,7 +181,7 @@ var _ = Describe("RoleRequest", func() {
 
 		Byf("Verifying ServiceAccount is removed from the workload cluster")
 		err = workloadClient.Get(context.TODO(),
-			types.NamespacedName{Namespace: "projectsveltos", Name: saNameInManagedCluster}, currentServiceAccount)
+			types.NamespacedName{Namespace: sveltosNamespace, Name: saNameInManagedCluster}, currentServiceAccount)
 		Expect(err).ToNot(BeNil())
 		Expect(apierrors.IsNotFound(err)).To(BeTrue())
 	})

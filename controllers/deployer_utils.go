@@ -54,6 +54,7 @@ const (
 	// expirationInSecond is the token expiration time.
 	saExpirationInSecond = 365 * 24 * 60 * time.Minute
 	expirationKey        = "expirationTime"
+	roleRequestOKLabel   = "ok"
 )
 
 func getServiceAccountToDeploy(roleRequest *libsveltosv1beta1.RoleRequest) *corev1.ServiceAccount {
@@ -65,7 +66,7 @@ func getServiceAccountToDeploy(roleRequest *libsveltosv1beta1.RoleRequest) *core
 			Name:      saName,
 			Namespace: serviceAccountNamespace,
 			Labels: map[string]string{
-				libsveltosv1beta1.RoleRequestLabel: "ok",
+				libsveltosv1beta1.RoleRequestLabel: roleRequestOKLabel,
 			},
 		},
 	}
@@ -95,7 +96,7 @@ func createServiceAccountInManagedCluster(ctx context.Context, remoteClient clie
 		if apierrors.IsNotFound(err) {
 			serviceAccount.Namespace = serviceAccountNamespace
 			serviceAccount.Name = saName
-			serviceAccount.Labels = map[string]string{libsveltosv1beta1.RoleRequestLabel: "ok"}
+			serviceAccount.Labels = map[string]string{libsveltosv1beta1.RoleRequestLabel: roleRequestOKLabel}
 			k8s_utils.AddOwnerReference(serviceAccount, roleRequest)
 			return remoteClient.Create(ctx, serviceAccount)
 		}
@@ -477,7 +478,7 @@ func deployRole(ctx context.Context, remoteConfig *rest.Config, remoteClient cli
 	addAnnotation(policy, deployer.ReferenceNameAnnotation, referencedObject.GetName())
 	addAnnotation(policy, deployer.ReferenceNamespaceAnnotation, referencedObject.GetNamespace())
 
-	addLabel(policy, libsveltosv1beta1.RoleRequestLabel, "ok")
+	addLabel(policy, libsveltosv1beta1.RoleRequestLabel, roleRequestOKLabel)
 
 	// If policy is namespaced, create namespace if not already existing
 	err := createNamespaceInManagedCluster(ctx, remoteClient, policy.GetNamespace())
@@ -534,16 +535,16 @@ func getRoleBinding(role *unstructured.Unstructured, roleRequest *libsveltosv1be
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: role.GetNamespace(),
 			Name:      role.GetName(),
-			Labels:    map[string]string{libsveltosv1beta1.RoleRequestLabel: "ok"},
+			Labels:    map[string]string{libsveltosv1beta1.RoleRequestLabel: roleRequestOKLabel},
 		},
 		RoleRef: rbacv1.RoleRef{
-			APIGroup: "rbac.authorization.k8s.io",
+			APIGroup: rbacAPIGroup,
 			Kind:     roleKind,
 			Name:     role.GetName(),
 		},
 		Subjects: []rbacv1.Subject{
 			{
-				Kind:      "ServiceAccount",
+				Kind:      serviceAccountKind,
 				Name:      saName,
 				Namespace: serviceAccountNamespace,
 			},
@@ -558,16 +559,16 @@ func getClusterRoleBinding(clusterRole *unstructured.Unstructured, roleRequest *
 	return &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   clusterRole.GetName(),
-			Labels: map[string]string{libsveltosv1beta1.RoleRequestLabel: "ok"},
+			Labels: map[string]string{libsveltosv1beta1.RoleRequestLabel: roleRequestOKLabel},
 		},
 		RoleRef: rbacv1.RoleRef{
-			APIGroup: "rbac.authorization.k8s.io",
+			APIGroup: rbacAPIGroup,
 			Kind:     clusterRoleKind,
 			Name:     clusterRole.GetName(),
 		},
 		Subjects: []rbacv1.Subject{
 			{
-				Kind:      "ServiceAccount",
+				Kind:      serviceAccountKind,
 				Name:      saName,
 				Namespace: serviceAccountNamespace,
 			},
@@ -600,7 +601,7 @@ func deployRoleBinding(ctx context.Context, remoteClient client.Client,
 
 	currentRoleBinding.RoleRef = roleBinding.RoleRef
 	currentRoleBinding.Subjects = roleBinding.Subjects
-	currentRoleBinding.Labels = map[string]string{libsveltosv1beta1.RoleRequestLabel: "ok"}
+	currentRoleBinding.Labels = map[string]string{libsveltosv1beta1.RoleRequestLabel: roleRequestOKLabel}
 	logger.V(logs.LogDebug).Info("updating roleBinding")
 	return roleBindingRef, remoteClient.Update(ctx, currentRoleBinding)
 }
@@ -631,7 +632,7 @@ func deployClusterRoleBinding(ctx context.Context, remoteClient client.Client,
 
 	currentClusterRoleBinding.RoleRef = clusterRoleBinding.RoleRef
 	currentClusterRoleBinding.Subjects = clusterRoleBinding.Subjects
-	currentClusterRoleBinding.Labels = map[string]string{libsveltosv1beta1.RoleRequestLabel: "ok"}
+	currentClusterRoleBinding.Labels = map[string]string{libsveltosv1beta1.RoleRequestLabel: roleRequestOKLabel}
 	logger.V(logs.LogDebug).Info("updating clusteRoleBinding")
 	return clusterRoleBindingRef, remoteClient.Update(ctx, currentClusterRoleBinding)
 }
@@ -716,7 +717,7 @@ func isClusterRoleOrRole(resource client.Object, logger logr.Logger) bool {
 	logger = logger.WithValues("kind", resource.GetObjectKind(), "resource-namespace", resource.GetNamespace(),
 		"resource-name", resource.GetName())
 
-	if resource.GetObjectKind().GroupVersionKind().Group != "rbac.authorization.k8s.io" {
+	if resource.GetObjectKind().GroupVersionKind().Group != rbacAPIGroup {
 		logger.V(logs.LogInfo).Info("resource is not a ClusterRole/Role")
 		return false
 	}

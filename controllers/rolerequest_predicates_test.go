@@ -101,7 +101,7 @@ var _ = Describe("RoleRequest Predicates: ConfigMapPredicates", func() {
 
 	It("Update returns true when data has changed", func() {
 		configMapPredicate := controllers.ConfigMapPredicates(logger)
-		configMap.Data = map[string]string{"change": "now"}
+		configMap.Data = map[string]string{changeKey: "now"}
 
 		oldConfigMap := &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
@@ -125,7 +125,7 @@ var _ = Describe("RoleRequest Predicates: ConfigMapPredicates", func() {
 		oldConfigMap := &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:   configMap.Name,
-				Labels: map[string]string{"env": "testing"},
+				Labels: map[string]string{envKey: testingValue},
 			},
 			Data: configMap.Data,
 		}
@@ -179,7 +179,7 @@ var _ = Describe("RoleRequest Predicates: SecretPredicates", func() {
 	It("Update returns true when data has changed", func() {
 		secretPredicate := controllers.SecretPredicates(logger)
 		str := base64.StdEncoding.EncodeToString([]byte("password"))
-		secret.Data = map[string][]byte{"change": []byte(str)}
+		secret.Data = map[string][]byte{changeKey: []byte(str)}
 
 		oldSecret := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
@@ -202,7 +202,7 @@ var _ = Describe("RoleRequest Predicates: SecretPredicates", func() {
 		oldSecret := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:   secret.Name,
-				Labels: map[string]string{"env": "testing"},
+				Labels: map[string]string{envKey: testingValue},
 			},
 		}
 
@@ -251,7 +251,7 @@ var _ = Describe("RoleRequest Predicates: SvelotsClusterPredicates", func() {
 		clusterPredicate := controllers.SveltosClusterPredicates(logger)
 
 		cluster.Spec.Paused = true
-		cluster.Annotations = map[string]string{clusterv1.PausedAnnotation: "true"}
+		cluster.Annotations = map[string]string{clusterv1.PausedAnnotation: trueString}
 
 		e := event.CreateEvent{
 			Object: cluster,
@@ -282,7 +282,7 @@ var _ = Describe("RoleRequest Predicates: SvelotsClusterPredicates", func() {
 			},
 		}
 		oldCluster.Spec.Paused = true
-		oldCluster.Annotations = map[string]string{clusterv1.PausedAnnotation: "true"}
+		oldCluster.Annotations = map[string]string{clusterv1.PausedAnnotation: trueString}
 
 		e := event.UpdateEvent{
 			ObjectNew: cluster,
@@ -296,7 +296,7 @@ var _ = Describe("RoleRequest Predicates: SvelotsClusterPredicates", func() {
 		clusterPredicate := controllers.SveltosClusterPredicates(logger)
 
 		cluster.Spec.Paused = true
-		cluster.Annotations = map[string]string{clusterv1.PausedAnnotation: "true"}
+		cluster.Annotations = map[string]string{clusterv1.PausedAnnotation: trueString}
 		oldCluster := &libsveltosv1beta1.SveltosCluster{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      cluster.Name,
@@ -336,7 +336,7 @@ var _ = Describe("RoleRequest Predicates: SvelotsClusterPredicates", func() {
 	It("Update reprocesses when sveltos Cluster labels change", func() {
 		clusterPredicate := controllers.SveltosClusterPredicates(logger)
 
-		cluster.Labels = map[string]string{"department": "eng"}
+		cluster.Labels = map[string]string{departmentKey: engValue}
 
 		oldCluster := &libsveltosv1beta1.SveltosCluster{
 			ObjectMeta: metav1.ObjectMeta{
@@ -415,7 +415,7 @@ var _ = Describe("RoleRequest Predicates: ClusterPredicates", func() {
 		clusterPredicate := controllers.ClusterPredicate{Logger: logger}
 
 		cluster.Spec.Paused = &paused
-		cluster.Annotations = map[string]string{clusterv1.PausedAnnotation: "true"}
+		cluster.Annotations = map[string]string{clusterv1.PausedAnnotation: trueString}
 
 		result := clusterPredicate.Create(event.TypedCreateEvent[*clusterv1.Cluster]{Object: cluster})
 		Expect(result).To(BeFalse())
@@ -438,7 +438,7 @@ var _ = Describe("RoleRequest Predicates: ClusterPredicates", func() {
 			},
 		}
 		oldCluster.Spec.Paused = &paused
-		oldCluster.Annotations = map[string]string{clusterv1.PausedAnnotation: "true"}
+		oldCluster.Annotations = map[string]string{clusterv1.PausedAnnotation: trueString}
 
 		result := clusterPredicate.Update(event.TypedUpdateEvent[*clusterv1.Cluster]{
 			ObjectNew: cluster, ObjectOld: oldCluster})
@@ -448,7 +448,7 @@ var _ = Describe("RoleRequest Predicates: ClusterPredicates", func() {
 		clusterPredicate := controllers.ClusterPredicate{Logger: logger}
 
 		cluster.Spec.Paused = &paused
-		cluster.Annotations = map[string]string{clusterv1.PausedAnnotation: "true"}
+		cluster.Annotations = map[string]string{clusterv1.PausedAnnotation: trueString}
 		oldCluster := &clusterv1.Cluster{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      cluster.Name,
@@ -480,7 +480,7 @@ var _ = Describe("RoleRequest Predicates: ClusterPredicates", func() {
 	It("Update reprocesses when v1Cluster labels change", func() {
 		clusterPredicate := controllers.ClusterPredicate{Logger: logger}
 
-		cluster.Labels = map[string]string{"department": "eng"}
+		cluster.Labels = map[string]string{departmentKey: engValue}
 
 		oldCluster := &clusterv1.Cluster{
 			ObjectMeta: metav1.ObjectMeta{

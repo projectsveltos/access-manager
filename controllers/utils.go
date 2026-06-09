@@ -34,8 +34,10 @@ import (
 //+kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=get;list;watch
 
 const (
-	configMapKind = "ConfigMap"
-	secretKind    = "Secret"
+	configMapKind      = "ConfigMap"
+	secretKind         = "Secret"
+	rbacAPIGroup       = "rbac.authorization.k8s.io"
+	serviceAccountKind = "ServiceAccount"
 )
 
 func InitScheme() (*runtime.Scheme, error) {
