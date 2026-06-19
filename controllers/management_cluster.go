@@ -24,10 +24,15 @@ import (
 
 var (
 	managementClusterClient client.Client
+	sveltosNamespace        string
 )
 
 func SetManagementClusterAccess(c client.Client, config *rest.Config) {
 	managementClusterClient = c
+}
+
+func SetSveltosNamespace(ns string) {
+	sveltosNamespace = ns
 }
 
 func getManagementClusterClient() client.Client {
@@ -36,4 +41,8 @@ func getManagementClusterClient() client.Client {
 
 func getManagementClusterScheme() *runtime.Scheme {
 	return managementClusterClient.Scheme()
+}
+
+func getSveltosNamespace() string {
+	return sveltosNamespace
 }

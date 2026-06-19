@@ -19,6 +19,7 @@ package fv_test
 import (
 	"context"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -46,14 +47,21 @@ var (
 	k8sClient           client.Client
 	scheme              *runtime.Scheme
 	kindWorkloadCluster *unstructured.Unstructured // This is the name of the kind workload cluster, in the form namespace/name
+	sveltosNamespace    string
 )
 
 const (
 	timeout             = 2 * time.Minute
 	pollingInterval     = 5 * time.Second
 	capiWorkloadCluster = "clusterapi-workload"
-	sveltosNamespace    = "projectsveltos"
 )
+
+func init() {
+	sveltosNamespace = os.Getenv("SVELTOS_NAMESPACE")
+	if sveltosNamespace == "" {
+		sveltosNamespace = "projectsveltos"
+	}
+}
 
 func TestFv(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -81,6 +89,7 @@ func TestFv(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
+	By(fmt.Sprintf("Running with Sveltos namespace: %s", sveltosNamespace))
 	ctrl.SetLogger(klog.Background())
 
 	restConfig := ctrl.GetConfigOrDie()

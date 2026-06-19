@@ -25,7 +25,7 @@ ARCH ?= amd64
 OS ?= $(shell uname -s | tr A-Z a-z)
 K8S_LATEST_VER ?= $(shell curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)
 export CONTROLLER_IMG ?= $(REGISTRY)/$(IMAGE_NAME)
-TAG ?= v1.11.0
+TAG ?= main
 
 .PHONY: all
 all: build
@@ -187,9 +187,28 @@ test: manifests generate fmt vet $(SETUP_ENVTEST) ## Run uts.
 .PHONY: kind-test
 kind-test: test create-cluster fv ## Build docker image; start kind cluster; load docker image; install all cluster api components and run fv
 
+.PHONY: kind-test-namespace
+kind-test-namespace: test create-cluster-infra fv-namespace ## Build docker image; start kind cluster; deploy access-manager in a random namespace and run fv
+
 .PHONY: fv
 fv: $(GINKGO) ## Run Sveltos Controller tests using existing cluster
 	cd test/fv; $(GINKGO) -nodes $(NUM_NODES) --label-filter='FV' --v --trace --randomize-all
+
+.PHONY: fv-namespace
+fv-namespace: $(GINKGO) $(KUBECTL) $(KUSTOMIZE) $(ENVSUBST) ## Run FV tests with access-manager deployed in a random namespace
+	$(MAKE) load-image
+	$(MAKE) deploy-crds
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	SVELTOS_NS="sveltos-$$(openssl rand -hex 4)"; \
+	echo "Deploying access-manager in namespace: $$SVELTOS_NS"; \
+	$(KUSTOMIZE) build config/default | $(ENVSUBST) | \
+		sed -E 's/^([[:space:]]+)(name|namespace): projectsveltos$$/\1\2: '"$$SVELTOS_NS"'/' | \
+		$(KUBECTL) apply -f-; \
+	echo "Waiting for cluster to be provisioned..."; \
+	$(KUBECTL) wait cluster $(WORKLOAD_CLUSTER_NAME) -n default --for=jsonpath='{.status.phase}'=Provisioned --timeout=$(TIMEOUT); \
+	echo "Waiting for access-manager to be available in namespace $$SVELTOS_NS..."; \
+	$(KUBECTL) wait --for=condition=Available deployment/access-manager -n "$$SVELTOS_NS" --timeout=$(TIMEOUT); \
+	cd test/fv && SVELTOS_NAMESPACE="$$SVELTOS_NS" $(GINKGO) -nodes $(NUM_NODES) --label-filter='FV' --v --trace --randomize-all
 
 .PHONY: fv-pullmode
 fv-pullmode: $(GINKGO) ## Run Sveltos Controller tests using existing cluster
@@ -203,8 +222,8 @@ fv-sharding: $(KUBECTL) $(GINKGO) ## Run Sveltos Controller tests using existing
 	rm -f test/access-manager-deployment-shard.yaml
 	cd test/fv; $(GINKGO) -nodes $(NUM_NODES) --label-filter='FV' --v --trace --randomize-all
 
-.PHONY: create-cluster
-create-cluster: $(KIND) $(CLUSTERCTL) $(KUBECTL) $(ENVSUBST) ## Create a new kind cluster designed for development
+.PHONY: create-cluster-infra
+create-cluster-infra: $(KIND) $(CLUSTERCTL) $(KUBECTL) $(ENVSUBST) ## Create kind cluster and workload cluster without deploying access-manager
 	$(MAKE) create-control-cluster
 
 	@echo wait for capd-system pod
@@ -212,12 +231,6 @@ create-cluster: $(KIND) $(CLUSTERCTL) $(KUBECTL) $(ENVSUBST) ## Create a new kin
 
 	@echo "Create a workload cluster"
 	$(KUBECTL) apply -f $(KIND_CLUSTER_YAML)
-
-	@echo "Start projectsveltos"
-	$(MAKE) deploy-projectsveltos
-
-	@echo "wait for cluster to be provisioned"
-	$(KUBECTL) wait cluster $(WORKLOAD_CLUSTER_NAME) -n default --for=jsonpath='{.status.phase}'=Provisioned --timeout=$(TIMEOUT)
 
 	@echo "sleep allowing control plane to be ready"
 	sleep 60
@@ -230,6 +243,14 @@ create-cluster: $(KIND) $(CLUSTERCTL) $(KUBECTL) $(ENVSUBST) ## Create a new kin
 
 	@echo wait for calico pod
 	$(KUBECTL) --kubeconfig=./test/fv/workload_kubeconfig wait --for=condition=Available deployment/calico-kube-controllers -n kube-system --timeout=$(TIMEOUT)
+
+.PHONY: create-cluster
+create-cluster: create-cluster-infra ## Create a new kind cluster designed for development
+	@echo "Start projectsveltos"
+	$(MAKE) deploy-projectsveltos
+
+	@echo "wait for cluster to be provisioned"
+	$(KUBECTL) wait cluster $(WORKLOAD_CLUSTER_NAME) -n default --for=jsonpath='{.status.phase}'=Provisioned --timeout=$(TIMEOUT)
 
 
 .PHONY: delete-cluster
@@ -317,18 +338,22 @@ create-cluster-pullmode: $(KIND) $(KUBECTL) $(ENVSUBST) $(KUSTOMIZE)
 	@echo "Switching to cluster1..."
 	$(KUBECTL) config use-context kind-$(CONTROL_CLUSTER_NAME)
 
-deploy-projectsveltos: $(KUSTOMIZE)
-	# Load projectsveltos image into cluster
-	@echo 'Load projectsveltos image into cluster'
-	$(MAKE) load-image
-
-	@echo 'Install libsveltos CRDs'
+.PHONY: deploy-crds
+deploy-crds: $(KUBECTL) ## Install all required Sveltos CRDs
 	$(KUBECTL) apply -f https://raw.githubusercontent.com/projectsveltos/libsveltos/$(TAG)/manifests/apiextensions.k8s.io_v1_customresourcedefinition_debuggingconfigurations.lib.projectsveltos.io.yaml
 	$(KUBECTL) apply -f https://raw.githubusercontent.com/projectsveltos/libsveltos/$(TAG)/manifests/apiextensions.k8s.io_v1_customresourcedefinition_accessrequests.lib.projectsveltos.io.yaml
 	$(KUBECTL) apply -f https://raw.githubusercontent.com/projectsveltos/libsveltos/$(TAG)/manifests/apiextensions.k8s.io_v1_customresourcedefinition_rolerequests.lib.projectsveltos.io.yaml
 	$(KUBECTL) apply -f https://raw.githubusercontent.com/projectsveltos/libsveltos/$(TAG)/manifests/apiextensions.k8s.io_v1_customresourcedefinition_sveltosclusters.lib.projectsveltos.io.yaml
 	$(KUBECTL) apply -f https://raw.githubusercontent.com/projectsveltos/libsveltos/$(TAG)/manifests/apiextensions.k8s.io_v1_customresourcedefinition_configurationgroups.lib.projectsveltos.io.yaml
 	$(KUBECTL) apply -f https://raw.githubusercontent.com/projectsveltos/libsveltos/$(TAG)/manifests/apiextensions.k8s.io_v1_customresourcedefinition_configurationbundles.lib.projectsveltos.io.yaml
+
+deploy-projectsveltos: $(KUSTOMIZE)
+	# Load projectsveltos image into cluster
+	@echo 'Load projectsveltos image into cluster'
+	$(MAKE) load-image
+
+	@echo 'Install libsveltos CRDs'
+	$(MAKE) deploy-crds
 
 	# Install projectsveltos access-manager components
 	@echo 'Install projectsveltos access-manager components'

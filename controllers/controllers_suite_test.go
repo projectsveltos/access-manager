@@ -55,10 +55,11 @@ import (
 )
 
 var (
-	testEnv *helpers.TestEnvironment
-	cancel  context.CancelFunc
-	ctx     context.Context
-	scheme  *runtime.Scheme
+	testEnv          *helpers.TestEnvironment
+	cancel           context.CancelFunc
+	ctx              context.Context
+	scheme           *runtime.Scheme
+	sveltosNamespace string
 )
 
 const (
@@ -113,6 +114,9 @@ var _ = BeforeSuite(func() {
 			panic(fmt.Sprintf("Failed to start the envtest manager: %v", err))
 		}
 	}()
+
+	sveltosNamespace = randomString()
+	controllers.SetSveltosNamespace(sveltosNamespace)
 
 	accessRequestCRD, err := k8s_utils.GetUnstructured(crd.GetAccessRequestCRDYAML())
 	Expect(err).To(BeNil())

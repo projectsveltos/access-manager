@@ -39,24 +39,24 @@ func IfNewDeletedOrSpecChange(logger logr.Logger) predicate.Funcs {
 			)
 
 			if oldAccessRequest == nil {
-				logger.V(logs.LogInfo).Info("Old AccessRequest is nil. Reconcile AccessRequest")
+				logger.V(logs.LogDebug).Info("Old AccessRequest is nil. Reconcile AccessRequest")
 				return true
 			}
 
 			// return true if AccessRequest.Status has changed
 			if !reflect.DeepEqual(oldAccessRequest.Spec, newAccessRequest.Spec) {
-				log.V(logs.LogInfo).Info(
+				log.V(logs.LogDebug).Info(
 					"AccessRequest Spec changed. Will attempt to reconcile associated AccessRequests.")
 				return true
 			}
 
 			if !newAccessRequest.DeletionTimestamp.IsZero() && oldAccessRequest.DeletionTimestamp.IsZero() {
-				log.V(logs.LogInfo).Info(
+				log.V(logs.LogDebug).Info(
 					"AccessRequest Deletion timestamp. Will attempt to reconcile associated AccessRequests.")
 				return true
 			}
 
-			log.V(logs.LogInfo).Info(
+			log.V(logs.LogDebug).Info(
 				"AccessRequest did not match expected conditions.  Will attempt to reconcile associated AccessRequests.")
 			return false
 		},

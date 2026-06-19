@@ -39,8 +39,8 @@ var (
 	GetClosestExpirationTime            = (*RoleRequestReconciler).getClosestExpirationTime
 )
 
-const (
-	ServiceAccountNamespace = serviceAccountNamespace
+var (
+	GetSveltosNamespace = getSveltosNamespace
 )
 
 var (

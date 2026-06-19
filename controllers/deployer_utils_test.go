@@ -66,7 +66,7 @@ var _ = Describe("Deployer utils", func() {
 	It("createServiceAccountInManagedCluster creates ServiceAccount", func() {
 		ns := &corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace: controllers.ServiceAccountNamespace,
+				Namespace: controllers.GetSveltosNamespace(),
 			},
 		}
 		initObjects := []client.Object{ns}
@@ -82,7 +82,7 @@ var _ = Describe("Deployer utils", func() {
 		managedClusterSAName := roles.GetServiceAccountNameInManagedCluster(saNamespace, saName)
 		currentServiceAccount := &corev1.ServiceAccount{}
 		Expect(c.Get(context.TODO(),
-			types.NamespacedName{Namespace: controllers.ServiceAccountNamespace, Name: managedClusterSAName},
+			types.NamespacedName{Namespace: controllers.GetSveltosNamespace(), Name: managedClusterSAName},
 			currentServiceAccount)).To(Succeed())
 
 		Expect(k8s_utils.IsOwnerReference(currentServiceAccount, roleRequest)).To(BeTrue())
@@ -535,7 +535,7 @@ func validateClusterRoleBinding(clusterRoleBinding *rbacv1.ClusterRoleBinding,
 		return false
 	}
 
-	if clusterRoleBinding.Subjects[0].Namespace != controllers.ServiceAccountNamespace {
+	if clusterRoleBinding.Subjects[0].Namespace != controllers.GetSveltosNamespace() {
 		return false
 	}
 
