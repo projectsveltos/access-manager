@@ -240,5 +240,7 @@ spec:
             - ALL
       securityContext:
         runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       serviceAccountName: access-manager
       terminationGracePeriodSeconds: 10
