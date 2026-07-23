@@ -38,6 +38,7 @@ import (
 
 	"github.com/projectsveltos/access-manager/pkg/scope"
 	libsveltosv1beta1 "github.com/projectsveltos/libsveltos/api/v1beta1"
+	"github.com/projectsveltos/libsveltos/lib/clustercache"
 	"github.com/projectsveltos/libsveltos/lib/clusterproxy"
 	"github.com/projectsveltos/libsveltos/lib/deployer"
 	"github.com/projectsveltos/libsveltos/lib/k8s_utils"
@@ -261,6 +262,9 @@ func (r *RoleRequestReconciler) proceedProcessingRoleRequest(ctx context.Context
 		var errorMessage string
 		if result.Err != nil {
 			errorMessage = result.Err.Error()
+
+			clustercache.GetManager().InvalidateOnAuthError(cluster.Namespace, cluster.Name,
+				clusterproxy.GetClusterType(cluster), result.Err)
 		}
 		clusterInfo := &libsveltosv1beta1.ClusterInfo{
 			Cluster:        *cluster,
@@ -723,7 +727,7 @@ func proceedDeployingRoleRequestInCluster(ctx context.Context, c client.Client,
 	clusterType libsveltosv1beta1.ClusterType, logger logr.Logger,
 ) error {
 
-	remoteClient, err := clusterproxy.GetKubernetesClient(ctx, c, clusterNamespace, clusterName, "", "",
+	remoteClient, err := clustercache.GetManager().GetKubernetesClient(ctx, c, clusterNamespace, clusterName, "", "",
 		clusterType, logger)
 	if err != nil {
 		logger.V(logs.LogInfo).Info(fmt.Sprintf("failed to get remote client: %v", err))
@@ -731,7 +735,7 @@ func proceedDeployingRoleRequestInCluster(ctx context.Context, c client.Client,
 	}
 
 	var remoteRestConfig *rest.Config
-	remoteRestConfig, err = clusterproxy.GetKubernetesRestConfig(ctx, c, clusterNamespace, clusterName, "", "",
+	remoteRestConfig, err = clustercache.GetManager().GetKubernetesRestConfig(ctx, c, clusterNamespace, clusterName, "", "",
 		clusterType, logger)
 	if err != nil {
 		logger.V(logs.LogInfo).Info(fmt.Sprintf("failed to get remote restConfig: %v", err))
@@ -1019,7 +1023,7 @@ func undeployRoleRequestFromCluster(ctx context.Context, c client.Client,
 		return undeployRoleRequestInPullMode(ctx, c, clusterNamespace, clusterName, roleRequest, logger)
 	}
 
-	remoteClient, err := clusterproxy.GetKubernetesClient(ctx, c, clusterNamespace, clusterName, "", "",
+	remoteClient, err := clustercache.GetManager().GetKubernetesClient(ctx, c, clusterNamespace, clusterName, "", "",
 		clusterType, logger)
 	if err != nil {
 		logger.V(logs.LogInfo).Info(fmt.Sprintf("failed to get remote client: %v", err))
