@@ -1,5 +1,6 @@
 [![CI](https://github.com/projectsveltos/access-manager/actions/workflows/main.yaml/badge.svg)](https://github.com/projectsveltos/access-manager/actions)
-[![Go Report Card](https://goreportcard.com/badge/github.com/projectsveltos/access-manager)](https://goreportcard.com/report/github.com/projectsveltos/accesss-manager)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/projectsveltos/access-manager/badge)](https://scorecard.dev/viewer/?uri=github.com/projectsveltos/access-manager)
+[![CodeQL](https://github.com/projectsveltos/access-manager/actions/workflows/codeql.yaml/badge.svg)](https://github.com/projectsveltos/access-manager/actions/workflows/codeql.yaml)
 [![Slack](https://img.shields.io/badge/join%20slack-%23projectsveltos-brighteen)](https://join.slack.com/t/projectsveltos/shared_invite/zt-1hraownbr-W8NTs6LTimxLPB8Erj8Q6Q)
 [![License](https://img.shields.io/badge/license-Apache-blue.svg)](LICENSE)
 [![Twitter Follow](https://img.shields.io/twitter/follow/projectsveltos?style=social)](https://twitter.com/projectsveltos)
@@ -17,14 +18,14 @@ Access manager is a projectsveltos service whose goals are:
 RoleRequest are used by platform admin to grant permissions to tenant admins in one or more managed clusters.
 
 AccessRequests are used for sveltos services deployed in the managed clusters that need to access back management cluster.
-Any other service can request a kubeconfig by creating an AccessRequest. 
+Any other service can request a kubeconfig by creating an AccessRequest.
 Access manager then:
 1. generates kubeconfig;
 2. stores in a secret;
 3. updates AccessRequest Status with the information on the Secret containing the kubeconfig;
 4. continuosly regenerate the token (whose expiration is set to 10 minutes)
 
-## Contributing 
+## Contributing
 
 ❤️ Your contributions are always welcome! If you want to contribute, have questions, noticed any bug or want to get the latest project news, you can connect with us in the following ways:
 
