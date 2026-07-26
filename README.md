@@ -1,9 +1,11 @@
 [![CI](https://github.com/projectsveltos/access-manager/actions/workflows/main.yaml/badge.svg)](https://github.com/projectsveltos/access-manager/actions)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/projectsveltos/access-manager/badge)](https://scorecard.dev/viewer/?uri=github.com/projectsveltos/access-manager)
 [![CodeQL](https://github.com/projectsveltos/access-manager/actions/workflows/codeql.yaml/badge.svg)](https://github.com/projectsveltos/access-manager/actions/workflows/codeql.yaml)
-[![Slack](https://img.shields.io/badge/join%20slack-%23projectsveltos-brighteen)](https://join.slack.com/t/projectsveltos/shared_invite/zt-1hraownbr-W8NTs6LTimxLPB8Erj8Q6Q)
+[![Release](https://img.shields.io/github/v/release/projectsveltos/access-manager)](https://github.com/projectsveltos/access-manager/releases)
 [![License](https://img.shields.io/badge/license-Apache-blue.svg)](LICENSE)
-[![Twitter Follow](https://img.shields.io/twitter/follow/projectsveltos?style=social)](https://twitter.com/projectsveltos)
+[![Slack](https://img.shields.io/badge/join%20slack-%23projectsveltos-brighteen)](https://join.slack.com/t/projectsveltos/shared_invite/zt-1hraownbr-W8NTs6LTimxLPB8Erj8Q6Q)
+[![LinkedIn](https://custom-icon-badges.demolab.com/badge/LinkedIn-0A66C2?logo=linkedin-white&logoColor=fff)](https://www.linkedin.com/company/projectsveltos/)
+[![X URL](https://img.shields.io/twitter/url/https/twitter.com/projectsveltos.svg?style=social&label=Follow%20%40projectsveltos)](https://x.com/projectsveltos)
 
 # Sveltos
 

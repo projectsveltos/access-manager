@@ -23,6 +23,18 @@ RUN CGO_ENABLED=0 GOOS=$BUILDOS GOARCH=$TARGETARCH go build -a -o manager main.g
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
 FROM gcr.io/distroless/static:nonroot
+
+ARG GIT_VERSION=unknown
+
+LABEL org.opencontainers.image.source="https://github.com/projectsveltos/access-manager" \
+      org.opencontainers.image.url="https://projectsveltos.io" \
+      org.opencontainers.image.licenses="Apache-2.0" \
+      org.opencontainers.image.vendor="projectsveltos" \
+      org.opencontainers.image.title="access-manager" \
+      org.opencontainers.image.description="Manages tenant admin RBAC across managed clusters based on RoleRequest instances." \
+      org.opencontainers.image.version="$GIT_VERSION" \
+      org.opencontainers.image.revision="$GIT_VERSION"
+
 WORKDIR /
 COPY --from=builder /workspace/manager .
 USER 65532:65532
