@@ -188,7 +188,7 @@ func (r *RoleRequestReconciler) reconcileDelete(
 	err := r.undeployRoleRequest(ctx, roleRequestScope, f, logger)
 	if err != nil {
 		logger.V(logs.LogInfo).Error(err, "failed to undeploy")
-		return reconcile.Result{Requeue: true, RequeueAfter: deleteRequeueAfter}, nil
+		return reconcile.Result{RequeueAfter: deleteRequeueAfter}, nil
 	}
 
 	r.Mux.Lock()
@@ -257,7 +257,7 @@ func (r *RoleRequestReconciler) reconcileNormal(
 	f := getHandlersForFeature(libsveltosv1beta1.FeatureRoleRequest)
 	if err = r.deployRoleRequest(ctx, roleRequestScope, f, logger); err != nil {
 		logger.V(logs.LogInfo).Error(err, "failed to deploy")
-		return reconcile.Result{Requeue: true, RequeueAfter: normalRequeueAfter}, nil
+		return reconcile.Result{RequeueAfter: normalRequeueAfter}, nil
 	}
 
 	// Find when next TokenRequest will expire (if any) and requeue this roleRequest
@@ -268,13 +268,13 @@ func (r *RoleRequestReconciler) reconcileNormal(
 	nextExpirationTime, err = r.getClosestExpirationTime(ctx, roleRequestScope, logger)
 	if err != nil {
 		logger.V(logs.LogInfo).Error(err, "failed to get next expiration time")
-		return reconcile.Result{Requeue: true, RequeueAfter: normalRequeueAfter}, nil
+		return reconcile.Result{RequeueAfter: normalRequeueAfter}, nil
 	}
 	if nextExpirationTime != nil {
 		logger.V(logs.LogDebug).Info(fmt.Sprintf(
 			"Reconciling RoleRequest success (requing in %f seconds before token expires)",
 			nextExpirationTime.Seconds()))
-		return reconcile.Result{Requeue: true, RequeueAfter: *nextExpirationTime}, nil
+		return reconcile.Result{RequeueAfter: *nextExpirationTime}, nil
 	}
 
 	logger.V(logs.LogDebug).Info("Reconciling RoleRequest success (no token expiring)")

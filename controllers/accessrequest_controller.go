@@ -182,7 +182,7 @@ func (r *AccessRequestReconciler) reconcileNormal(
 
 	logger.V(logs.LogDebug).Info("Reconcile success")
 	// Requeue in expirationInSecond in order to renew token
-	return reconcile.Result{Requeue: true, RequeueAfter: expirationInSecond}, nil
+	return reconcile.Result{RequeueAfter: expirationInSecond}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
