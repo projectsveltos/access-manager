@@ -44,6 +44,10 @@ var (
 )
 
 var (
+	GetKeyFromObject = getKeyFromObject
+)
+
+var (
 	GetHandlersForFeature   = getHandlersForFeature
 	CreatFeatureHandlerMaps = creatFeatureHandlerMaps
 )
