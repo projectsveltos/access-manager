@@ -71,3 +71,8 @@ var (
 	UndeployRoleRequestFromCluster = undeployRoleRequestFromCluster
 	RoleRequestHash                = roleRequestHash
 )
+
+var (
+	NewRoleRequestHistogram = newRoleRequestHistogram
+	ProgramDuration         = programDuration
+)
