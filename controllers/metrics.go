@@ -64,15 +64,12 @@ func newRoleRequestHistogram(clusterNamespace, clusterName string, clusterType l
 
 	err := metrics.Registry.Register(histogram)
 	if err != nil {
-		var registrationError *prometheus.AlreadyRegisteredError
-		ok := errors.As(err, &registrationError)
-		if ok {
-			_, ok = registrationError.ExistingCollector.(prometheus.Histogram)
-			if ok {
-				return registrationError.ExistingCollector.(prometheus.Histogram)
+		// Register returns AlreadyRegisteredError as a value, not as a pointer
+		var registrationError prometheus.AlreadyRegisteredError
+		if errors.As(err, &registrationError) {
+			if existing, ok := registrationError.ExistingCollector.(prometheus.Histogram); ok {
+				return existing
 			}
-			logCollectorError(err, logger)
-			return nil
 		}
 		logCollectorError(err, logger)
 		return nil
